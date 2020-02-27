@@ -125,7 +125,7 @@ def main():
     for item in product_columns:
       product_info_df[item]=product_info_df[item].astype('str').str.strip()
     
-    product_info_df = product_info_df[217:218]
+    product_info_df = product_info_df[215:216]
     #Identifed case table
     identified_sfdc_df = pd.read_sql(sfdc_identified_info_query, sql_cursor)
     
@@ -183,6 +183,7 @@ def main():
           to_be_checked=df_checked.values.tolist()
           starting_indx+=1
           argument_str=[]
+          just="value"
           for category_type,item,subct in to_be_checked:
             try:
               temp_str=category_type+","+str(item)+","+subct+","+str(starting_indx)
@@ -190,8 +191,8 @@ def main():
             except Exception as e:
               logger.error("Error in sales force",exc_info=True)   
           print(argument_str)
-          pool = ThreadPool(25)
-          pool.map(lambda path:dbutils.notebook.run('/Users/admomanickamm@momentive.onmicrosoft.com/parallel_process',timeout_seconds=0,arguments = {"to_checked":path}),argument_str) 
+          pool = ThreadPool(5)
+          pool.map(lambda path:dbutils.notebook.run('/Users/admomanickamm@momentive.onmicrosoft.com/parallel_process',timeout_seconds=0,arguments = {"somekey":just,"to_checked":path}),argument_str) 
           pool.close()
         except Exception as e:
           logger.error("Error in sales force",exc_info=True)
