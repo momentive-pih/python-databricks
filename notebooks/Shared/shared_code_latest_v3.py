@@ -915,7 +915,10 @@ def pattern_match_validation(sql_conn,external_processed_files_df,cursor,unstruc
                   #validating for relavent and non-relavant file if the key-value extract  from excel
                   #******************************************************************************************  
                   elif all(int(match.lower().strip()) == 2 for match in (pattern_key_df[pattern_key_df['pattern_category'].str.contains("^\s*{}\s*$".format(pattern_cat_match),case=False)])['result_type'].values.tolist()):
+                      print('pattern_cat_match.strip()',pattern_cat_match.strip())
                       file_is_valid = file_is_valid_query.format(1,1,'null',file.replace("dbfs:","/dbfs"))
+                      
+                      update_operation(file_is_valid,sql_conn,cursor)
                       valid_path = external_excel_files[index]
                       excel_extract2_key_value_pair(valid_path, sql_conn,cursor,pattern_cat_match.strip())
                       key_data_extract_external_source(valid_path,sql_conn,cursor,pattern_cat_match.strip(),unstructure_processed_data_query)
@@ -1718,7 +1721,7 @@ def external_folder_structure_process(external_folder_structure,external_source_
               #****************************************************************************
               if bool(xlsx_list):
                   logger.info('{} xlsx file found in the staging_path'.format(len(xlsx_list)))
-                  xlsx_text_extract(staging_path,xlsx_list[1:2],source_type,all_files,excel_files,file_processing_info,sql_conn,cursor)
+                  xlsx_text_extract(staging_path,xlsx_list[1:3],source_type,all_files,excel_files,file_processing_info,sql_conn,cursor)
     raw_df1['file_name'] = raw_files 
     return raw_df1
   except Exception as e:
@@ -1735,12 +1738,12 @@ def external_folder_structure_process(external_folder_structure,external_source_
 
 def update_operation(query,sql_conn,cursor):
   print(query)
-  print('kk',query.find('.txt'))
-  print(query.rfind('/dbfs'))
+#   print('kk',query.find('.txt'))
+#   print(query.rfind('/dbfs'))
   all_text_find = query[query[:query.find('.txt')].rfind('/dbfs'):query.find('.txt')+4]
   print(all_text_find)
   if len(query.split(',')) > 6:
-    print(all_text_find)
+    #print(all_text_find)
     extracted_file_list.append(all_text_find)
   cursor.execute(query)
   sql_conn.commit()  
@@ -1861,3 +1864,6 @@ if __name__ == '__main__':
 
 # MAGIC %sh
 # MAGIC cat /databricks/driver/shared_main_code_error.log
+
+# COMMAND ----------
+
