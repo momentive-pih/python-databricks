@@ -81,16 +81,15 @@ def adding_matched_values(temp_df,category_type,indx,value,subct):
       else:
         matched_category="CHEMICAL NAME"
         matched_column="Text3"
-    matched_value=value
 #         print("matched_category",matched_category)
 #         print("matched_column",matched_column)
     temp_df["MatchedColumn"]=matched_column
     temp_df["MatchedCategory"]=matched_category
-    temp_df["MatchedValue"]=matched_value
-    print(matched_column,matched_category,matched_value)
+    temp_df["MatchedValue"]=value
+    print(matched_column,matched_category,value)
     return temp_df
   except Exception as e:
-    print("error in adding matched_values",matched_value)
+    print("error in adding matched_values",e)
 
 # COMMAND ----------
 
@@ -101,13 +100,20 @@ import os
 import re
 import pandas as pd
 import configparser
+import datetime
 
+current_date = str(datetime.datetime.now())
+date = current_date[:10]
 config = configparser.ConfigParser()
 #This configuration path should be configured in Blob storage
 config.read("/dbfs/mnt/momentive-configuration/config-file.ini")
+filename = config.get('mnt_sales_force','mnt_sales_force_out_filename')
+sfdc_text_folder = config.get('mnt_sales_force','mnt_sales_force_split_files')
 sfdc_extract_column = config.get('mnt_sales_force',"mnt_sales_force_extract_column")
 sfdc_column = sfdc_extract_column.split(",")
-inscope_sfdc_info_df=pd.read_csv('/dbfs/mnt/momentive-sources-pih/sales-force/backup/test.csv',encoding="ISO-8859-1")
+# inscope_sfdc_info_df=pd.read_csv('/dbfs/mnt/momentive-sources-pih/sales-force/backup/test.csv',encoding="ISO-8859-1")
+inscope_sfdc_info_df=pd.read_csv(sfdc_text_folder+filename+".csv",encoding="ISO-8859-1")
+print("processing file length - ",len(inscope_sfdc_info_df))
 #Connecting SQL db to get SFDC data
 sql_cursor = SQL_connection("server","database","username","password")
 cursor=sql_cursor.cursor()
@@ -171,7 +177,7 @@ if len(output_df)>0:
         insert_data+="'"+item+"',"
       if len(insert_data)>0:
         insert_data=insert_data[:-1]
-        insert_query="insert into [momentive].[sfdc_identified_case] values ("+insert_data+")"
+        insert_query="insert into [momentive].[test_sfdc_identified_case] values ("+insert_data+")"
         cursor.execute(insert_query)
         sql_cursor.commit()
     except Exception as e:
