@@ -132,7 +132,6 @@ def main():
     product_info_df = pd.read_sql(product_info_query, sql_cursor)
     print("sql_product_count -- ",len(product_info_df))
     
-#     product_info_df = pd.read_csv('/dbfs/mnt/momentive-sources-pih/sales-force/product_info_V2.csv',encoding="ISO-8859-1")
     product_info_df=product_info_df.fillna("NULL")
     
     product_columns=product_info_df.columns
@@ -142,7 +141,7 @@ def main():
     print("edited",len(product_info_df))
     #Identifed case table
     identified_sfdc_df=''
-#     identified_sfdc_df = pd.read_sql(sfdc_identified_info_query, sql_cursor)
+    identified_sfdc_df = pd.read_sql(sfdc_identified_info_query, sql_cursor)
     
     #Historical and incremental logic
     if len(identified_sfdc_df)>0:
@@ -165,9 +164,9 @@ def main():
       detect_sfdc_info_query = historical_query
       
     #loading SFDC data into dataframe
-#     inscope_sfdc_info_df = pd.read_sql(detect_sfdc_info_query, sql_cursor)
-#     inscope_sfdc_info_df=inscope_sfdc_info_df.fillna("NULL")
-#     inscope_sfdc_info_df=inscope_sfdc_info_df.replace({"None":"NULL"})
+    inscope_sfdc_info_df = pd.read_sql(detect_sfdc_info_query, sql_cursor)
+    inscope_sfdc_info_df=inscope_sfdc_info_df.fillna("NULL")
+    inscope_sfdc_info_df=inscope_sfdc_info_df.replace({"None":"NULL"})
     
     #remove multiple whitespace with single space for validate column
     def optimize_function(column_value):
@@ -181,28 +180,23 @@ def main():
       final_str=" ".join(pos_filter)
       return final_str
     
-#     to_remove_from_list=["momentive","com",'?',"@","*","€","â","”","!","https","www"]    
-#     inscope_sfdc_info_df["validate_category"] = inscope_sfdc_info_df[sfdc_validate_column].apply(lambda x: ' '.join(x), axis = 1) 
-#     inscope_sfdc_info_df["validate_category"] =inscope_sfdc_info_df["validate_category"].apply(optimize_function)
-#     inscope_sfdc_info_df=pd.read_csv('/dbfs/mnt/momentive-sources-pih/sales-force/backup/test.csv',encoding="ISO-8859-1")
+    to_remove_from_list=["momentive","com",'?',"@","*","€","â","”","!","https","www"]    
+    inscope_sfdc_info_df["validate_category"] = inscope_sfdc_info_df[sfdc_validate_column].apply(lambda x: ' '.join(x), axis = 1) 
+    inscope_sfdc_info_df["validate_category"] =inscope_sfdc_info_df["validate_category"].apply(optimize_function)
     
-#     #writing sfdc data into blob storage for passing file to concurrent file process    
-#     if not os.path.exists(sfdc_text_folder):
-#         path_exists(sfdc_text_folder)
-#     processing_file_name = sfdc_text_folder+filename+"_"+date+".csv"
-#     print("file - ",processing_file_name)
-#     inscope_sfdc_info_df.to_csv(processing_file_name,index=False)
+    #writing sfdc data into blob storage for passing file to concurrent file process    
+    if not os.path.exists(sfdc_text_folder):
+        path_exists(sfdc_text_folder)
+    processing_file_name = sfdc_text_folder+filename+"_"+date+".csv"
+    print("file - ",processing_file_name)
+    inscope_sfdc_info_df.to_csv(processing_file_name,index=False)
     
     check_product_column=["Text1","Text2","Text3"] 
     row_product=[]
     starting_indx=-1
     argument_str=[]
     
-    
-#     if len(processing_file_name)>0:
-#       pass
-#     if len(product_info_df)>0 and len(inscope_sfdc_info_df)>0:
-    if len(product_info_df)>0:
+    if len(product_info_df)>0 and len(inscope_sfdc_info_df)>0:
       for column_type in check_product_column:
         try:
           category=["Type",column_type,"SUBCT"]
