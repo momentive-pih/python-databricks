@@ -41,11 +41,11 @@ import os
 import re
 import pandas as pd
 import numpy as np
-import datetime
 import re
 import configparser
 import logging
 import os
+import json
 import nltk
 
 #nltk initializer 
@@ -56,7 +56,8 @@ from nltk.tokenize import sent_tokenize
 from nltk.corpus import stopwords
 #stop word removal
 stop_words=list(set(stopwords.words("english")))
-
+current_date = str(datetime.datetime.now())
+date = current_date[:10]
 #Loging environment setup
 logger = logging.getLogger('momentive')
 logger.setLevel(logging.DEBUG)
@@ -70,10 +71,11 @@ fh.setFormatter(formatter)
 # add fh to logger
 logger.addHandler(fh)
 
+
 config = configparser.ConfigParser()
 #This configuration path should be configured in Blob storage
 config.read("/dbfs/mnt/momentive-configuration/config-file.ini")
-sfdc_splitted_folder = config.get('mnt_sales_force','mnt_sales_force_split_files')
+sfdc_text_folder = config.get('mnt_sales_force','mnt_sales_force_split_files')
 filename = config.get('mnt_sales_force','mnt_sales_force_out_filename')
 sfdc_case_email_table_name = config.get('mnt_sales_force',"mnt_sales_force_case_email_table_name")
 sfdc_identified_case = config.get('mnt_sales_force',"mnt_sfdc_identifed_table_name")
@@ -93,6 +95,16 @@ view_connector="dbo"
 modified_column = config.get("mnt_sales_force","mnt_sales_force_last_modified_columm")
 adding_custom_column=['MatchedColumn','MatchedCategory','MatchedValue']
 sfdc_new_validate_column=["validate_category"]
+product_category=config.get('mnt_sales_force',"mnt_product_category")
+processing_file_name=''
+
+def path_exists(file_path):
+  try:
+    logger.info("Executing path_exists function")
+    dbutils.fs.rm(file_path.replace("/dbfs",""),True)
+    dbutils.fs.mkdirs(file_path.replace("/dbfs","dbfs:"))
+  except Exception as e:
+    logger.error("Error in path_exists function : ",exc_info=True)
 
 def main():
   try:
@@ -117,17 +129,20 @@ def main():
     cursor=sql_cursor.cursor()
     
     #Incope product
-#     product_info_df = pd.read_sql(product_info_query, sql_cursor)
-    product_info_df = pd.read_csv('/dbfs/mnt/momentive-sources-pih/sales-force/product_info_V2.csv',encoding="ISO-8859-1")
+    product_info_df = pd.read_sql(product_info_query, sql_cursor)
+    print("sql_product_count -- ",len(product_info_df))
+    
+#     product_info_df = pd.read_csv('/dbfs/mnt/momentive-sources-pih/sales-force/product_info_V2.csv',encoding="ISO-8859-1")
     product_info_df=product_info_df.fillna("NULL")
     
     product_columns=product_info_df.columns
     for item in product_columns:
       product_info_df[item]=product_info_df[item].astype('str').str.strip()
     
-    product_info_df = product_info_df[215:216]
+    print("edited",len(product_info_df))
     #Identifed case table
-    identified_sfdc_df = pd.read_sql(sfdc_identified_info_query, sql_cursor)
+    identified_sfdc_df=''
+#     identified_sfdc_df = pd.read_sql(sfdc_identified_info_query, sql_cursor)
     
     #Historical and incremental logic
     if len(identified_sfdc_df)>0:
@@ -168,13 +183,26 @@ def main():
     
 #     to_remove_from_list=["momentive","com",'?',"@","*","€","â","”","!","https","www"]    
 #     inscope_sfdc_info_df["validate_category"] = inscope_sfdc_info_df[sfdc_validate_column].apply(lambda x: ' '.join(x), axis = 1) 
-#     inscope_sfdc_info_df["validate_category"] =inscope_sfdc_info_df["validate_category"].apply(optimize_function) 
-    inscope_sfdc_info_df=pd.read_csv('/dbfs/mnt/momentive-sources-pih/sales-force/backup/test.csv',encoding="ISO-8859-1")
-  
-    check_product_column=["Text1","Text2","Text3"]   
-    starting_indx=-1
+#     inscope_sfdc_info_df["validate_category"] =inscope_sfdc_info_df["validate_category"].apply(optimize_function)
+#     inscope_sfdc_info_df=pd.read_csv('/dbfs/mnt/momentive-sources-pih/sales-force/backup/test.csv',encoding="ISO-8859-1")
     
-    if len(product_info_df)>0 and len(inscope_sfdc_info_df)>0:
+#     #writing sfdc data into blob storage for passing file to concurrent file process    
+#     if not os.path.exists(sfdc_text_folder):
+#         path_exists(sfdc_text_folder)
+#     processing_file_name = sfdc_text_folder+filename+"_"+date+".csv"
+#     print("file - ",processing_file_name)
+#     inscope_sfdc_info_df.to_csv(processing_file_name,index=False)
+    
+    check_product_column=["Text1","Text2","Text3"] 
+    row_product=[]
+    starting_indx=-1
+    argument_str=[]
+    
+    
+#     if len(processing_file_name)>0:
+#       pass
+#     if len(product_info_df)>0 and len(inscope_sfdc_info_df)>0:
+    if len(product_info_df)>0:
       for column_type in check_product_column:
         try:
           category=["Type",column_type,"SUBCT"]
@@ -182,20 +210,20 @@ def main():
           df_checked.drop_duplicates(inplace=True)
           to_be_checked=df_checked.values.tolist()
           starting_indx+=1
-          argument_str=[]
-          just="value"
           for category_type,item,subct in to_be_checked:
             try:
               temp_str=category_type+","+str(item)+","+subct+","+str(starting_indx)
-              argument_str.append(temp_str)
+              row_product.append(temp_str)
             except Exception as e:
               logger.error("Error in sales force",exc_info=True)   
-          print(argument_str)
-          pool = ThreadPool(5)
-          pool.map(lambda path:dbutils.notebook.run('/Users/admomanickamm@momentive.onmicrosoft.com/parallel_process',timeout_seconds=0,arguments = {"somekey":just,"to_checked":path}),argument_str) 
-          pool.close()
         except Exception as e:
           logger.error("Error in sales force",exc_info=True)
+    
+#     print("row_product",len(row_product))
+    #calling notebook for concurrent process      
+    pool = ThreadPool(25)
+    pool.map(lambda path:dbutils.notebook.run('/Users/admomanickamm@momentive.onmicrosoft.com/parallel_process',timeout_seconds=0,arguments = {"to_checked":path}),row_product) 
+    pool.close()
     
   except Exception as e:
     logger.error("Error in sales force",exc_info=True)
@@ -203,7 +231,6 @@ def main():
 
 if __name__ == '__main__':
   main()
-
 
 
 # COMMAND ----------
