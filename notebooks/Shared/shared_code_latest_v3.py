@@ -118,7 +118,7 @@ def data_validation_to_relevant_non_relevant_split(data_delta, valid_path, prima
     
     regex1 = re.compile(r'(\d+-\d+-\d+)', re.I) #CAS number formatting
     regex2 = re.compile(r'(Y-\d+)', re.I)  #Y-Number formatting
-    regex3 = re.compile(r'(\s+/+\s+)', re.I) #
+    regex3 = re.compile(r'(.+/+.+)', re.I) #
     
     reg_ex = [] 
     reg_ex1 = []
@@ -127,6 +127,7 @@ def data_validation_to_relevant_non_relevant_split(data_delta, valid_path, prima
       for i in range(data_delta.shape[0]):
         product = data_delta.loc[i, primary_column]
         reg_ex = regex1.findall(str(product)) or regex2.findall(str(product)) or regex3.findall(str(product))
+        
         if len(reg_ex)>0:
           data_delta.loc[i, primary_column]=reg_ex[0]
         reg_ex1 = regex1.findall(str(product)) and regex2.findall(str(product))
@@ -916,42 +917,14 @@ def pattern_match_validation(sql_conn,external_processed_files_df,cursor,unstruc
                   #******************************************************************************************  
                   elif all(int(match.lower().strip()) == 2 for match in (pattern_key_df[pattern_key_df['pattern_category'].str.contains("^\s*{}\s*$".format(pattern_cat_match),case=False)])['result_type'].values.tolist()):
                       print('pattern_cat_match.strip()',pattern_cat_match.strip())
-                      file_is_valid = file_is_valid_query.format(1,1,'null',file.replace("dbfs:","/dbfs"))
-                      
+                      #print(file)
+                      file = external_processed_files[index].replace("dbfs:","/dbfs")
+                      file_is_valid = file_is_valid_query.format(1,1,'null',file.replace("dbfs:","/dbfs"))                      
                       update_operation(file_is_valid,sql_conn,cursor)
                       valid_path = external_excel_files[index]
                       excel_extract2_key_value_pair(valid_path, sql_conn,cursor,pattern_cat_match.strip())
                       key_data_extract_external_source(valid_path,sql_conn,cursor,pattern_cat_match.strip(),unstructure_processed_data_query)
-#                      print('lllllll',)
-#                       valid_path = '/dbfs/mnt/test-pih/python/'
-#                       sql_cursor = SQL_connection()
-#                       excel_extract2_key_value_pair(valid_path, sql_cursor)
-#                       key_data_extract_external_source(valid_path)
-#                       head, tail = os.path.split(file)
-#                       file_extn = tail.rsplit('.',1)[-1]
-#                       file_name = tail.rsplit('.',1)[0]
-#                       file_in_dir =  os.listdir(file.rsplit('all-text',1)[0])
-#                       file_loc = file.rsplit('all-text',1)[0] + 'valid-files/'+ pattern_cat_match.strip() + '/'
-#                       excel_valid_query = config.get('mount_path','excel_is_valid')
 
-#                       if file_name + '.csv' in file_in_dir:            
-#                           file_csv = file.rsplit('all-text',1)[0] + file_name + '.csv'
-#                           file_csv = file_csv.replace("/dbfs","dbfs:")
-#                           file_loc = file_loc.replace("/dbfs","dbfs:")   
-#                           dbutils.fs.cp(file_csv, file_loc) 
-#                           file_valid_path = file_loc + file_name + '.csv'
-#                           excel_valid_query.format(1,file_valid_path, pattern_cat_match.strip() ,file)
-#                           #file_type_list.append('records')
-#                       elif file_name in  file_in_dir:
-#                           file_csv_list = glob.glob(file.rsplit('all-text',1)[0] + file_name + '/*.csv')
-#                           for file_csv in file_csv_list:
-#                             file_name = file_csv.rsplit('.',1)[1]
-#                             file_csv = file_csv.replace("/dbfs","dbfs:")
-#                             file_loc = file_loc.replace("/dbfs","dbfs:")   
-#                             dbutils.fs.cp(file_csv, file_loc)
-#                             file_valid_path = file_loc + file_name
-#                             excel_valid_query.format(1,file_valid_path, pattern_cat_match.strip(),file) 
-                            #file_type_list.append('records')
                       file_valid_flag ='s'   
 
           #*************************************************************************************************
@@ -1070,7 +1043,7 @@ def excel2txt(staging_path, abs_path):
 #Usage: common code is written which converts all the csv file into text and stores the extracted data in all_files area in txt format,  #       then file path into the file_processing_info table
 #called by : external_folder_structure_process
 #****************************************************************************************************************************** 
-def csv_text_extract(staging_path,csv_list,source_type,all_files,file_processing_info,sql_conn,cursor):
+def csv_text_extract(staging_path,csv_list,source_type,all_files,file_processing_info,update_file_processing_info,file_processing_blob_all_txt_list,sql_conn,cursor):
   try:
       logger.info('Executing csv_text_extract function') 
       for abs_path in csv_list:
@@ -1102,7 +1075,10 @@ def csv_text_extract(staging_path,csv_list,source_type,all_files,file_processing
             #Creation of insert query for the extracted valid file path to the file_processing_info table and executed using
             #update_operation
             #*******************************************************************************************************************
-          file_processing_info_query = file_processing_info + " values ('{}', '{}', '{}', '{}', '{}', '{}', '{}', '{}', {}, {},'{}')".format(source_type, file_name,'Excel','.csv', staging_path.replace('//','/'), file_path.replace('//','/'), 1,0,'GETDATE()','GETDATE()',excel_files + file_name+'/')
+          if file_path.replace('//','/').strip() not in file_processing_blob_all_txt_list:
+            file_processing_info_query = file_processing_info + " values ('{}', '{}', '{}', '{}', '{}', '{}', '{}', '{}', {}, {},'{}')".format(source_type, file_name,'Excel','.csv', staging_path.replace('//','/'), file_path.replace('//','/').strip(), 1,0,'GETDATE()','GETDATE()',excel_files + file_name+'/')
+          else:
+              file_processing_info_query = update_file_processing_info.format('GETDATE()',file_path.replace('//','/').strip())
           update_operation(file_processing_info_query,sql_conn,cursor)
           logger.error('{}  extract_csv_text sucessfully'.format(file_path.replace('//','/')))
             
@@ -1133,7 +1109,7 @@ def csv_text_extract(staging_path,csv_list,source_type,all_files,file_processing
 #Usage: common code is written which converts all the xlsx file into text and stores the extracted data in all_files area in txt format,  #       then file path into the file_processing_info table
 #called by : external_folder_structure_process
 #*****************************************************************************************************************************************      
-def xlsx_text_extract(staging_path,xlsx_list,source_type,all_files,excel_files,file_processing_info,sql_conn,cursor):
+def xlsx_text_extract(staging_path,xlsx_list,source_type,all_files,excel_files,file_processing_info,update_file_processing_info,file_processing_blob_all_txt_list,sql_conn,cursor):
   try:
       for abs_path in xlsx_list:
         try:
@@ -1174,7 +1150,10 @@ def xlsx_text_extract(staging_path,xlsx_list,source_type,all_files,excel_files,f
           #Creation of insert query for the extracted valid file path to the file_processing_info table using
           #update_operation
           #*************************************************************************************************************** 
-          file_processing_info_query = file_processing_info + " values ('{}', '{}', '{}', '{}', '{}', '{}', '{}', '{}', {}, {},'{}')".format(source_type, file_name,'Excel','.csv', staging_path.replace('//','/'), file_path.replace('//','/'), 1,0,'GETDATE()','GETDATE()',excel_files + file_name+'/')
+          if file_path.replace('//','/').strip() not in file_processing_blob_all_txt_list:
+            file_processing_info_query = file_processing_info + " values ('{}', '{}', '{}', '{}', '{}', '{}', '{}', '{}', {}, {},'{}')".format(source_type, file_name,'Excel','.csv', staging_path.replace('//','/'), file_path.replace('//','/').strip(), 1,0,'GETDATE()','GETDATE()',excel_files + file_name+'/')
+          else:
+              file_processing_info_query = update_file_processing_info.format('GETDATE()',file_path.replace('//','/').strip())
           update_operation(file_processing_info_query,sql_conn,cursor)
           logger.error('{}  extract_csv_text sucessfully'.format(file_path.replace('//','/')))          
                     
@@ -1300,7 +1279,7 @@ def outlook_attachment(msg_list,staging_path_pdf,raw_files,raw_format):
 #Usage: common code is written which extract text from a document files and store it in a text file on the respective sources
 #called by : external_folder_structure_process
 #*******************************************************************************************************************************
-def extract_doc_text(staging_path,doc_file_list,source_type,all_files,file_processing_info,sql_conn,cursor):
+def extract_doc_text(staging_path,doc_file_list,source_type,all_files,file_processing_info,update_file_processing_info,file_processing_blob_all_txt_list,sql_conn,cursor):
     for files in doc_file_list:
       try:
         doc = docx.Document(files)
@@ -1318,8 +1297,11 @@ def extract_doc_text(staging_path,doc_file_list,source_type,all_files,file_proce
         #Creation of insert query for the extracted valid file path to the file_processing_info table and executed using
         #update_operation
         #***************************************************************************************************************
-        file_processing_info_query = file_processing_info + " values ('{}', '{}', '{}', '{}', '{}', '{}', '{}', '{}', {}, {},'{}')".format(source_type, file_name, 
+        if file_path.replace('//','/').strip() not in file_processing_blob_all_txt_list:
+          file_processing_info_query = file_processing_info + " values ('{}', '{}', '{}', '{}', '{}', '{}', '{}', '{}', {}, {},'{}')".format(source_type, file_name, 
         'Document','.docx', staging_path.replace('//','/'), file_path.replace('//','/').strip(), 1,0,'GETDATE()','GETDATE()','null')
+        else:
+              file_processing_info_query = update_file_processing_info.format('GETDATE()',file_path.replace('//','/').strip())
         update_operation(file_processing_info_query,sql_conn,cursor)
         logger.error('{}  extract_doc_text sucessfully'.format(files))
       except Exception as e:
@@ -1487,7 +1469,7 @@ def pdf_to_image_converison(files,target):
 #into file_processing_info table
 #called by : external_folder_structure_process
 #**************************************************************************************************************************************   
-def native_pdf_extract_text(native_path,all_files,staging_path,source_type,file_processing_info,sql_conn,cursor):
+def native_pdf_extract_text(native_path,all_files,staging_path,source_type,file_processing_info,update_file_processing_info,file_processing_blob_all_txt_list,sql_conn,cursor):
     try:
         count=0
         logger.info("Executing native_pdf_extract_text function")
@@ -1511,8 +1493,11 @@ def native_pdf_extract_text(native_path,all_files,staging_path,source_type,file_
             #Creation of insert query for the extracted valid file path to the file_processing_info table and executed using
             #update_operation
             #***************************************************************************************************************
-            file_processing_info_query = file_processing_info + " values ('{}', '{}', '{}', '{}', '{}', '{}', '{}', '{}',{}, {} ,'{}')".format(source_type, file_name,      
+            if file_path.replace('//','/').strip() not in file_processing_blob_all_txt_list:
+              file_processing_info_query = file_processing_info + " values ('{}', '{}', '{}', '{}', '{}', '{}', '{}', '{}',{}, {} ,'{}')".format(source_type, file_name,      
             'PDF','.pdf', staging_path.replace('//','/'), file_path.replace('//','/').strip(), 1,0,'GETDATE()','GETDATE()', 'null')
+            else:
+              file_processing_info_query = update_file_processing_info.format('GETDATE()',file_path.replace('//','/').strip())
             update_operation(file_processing_info_query,sql_conn,cursor)
             logger.info("Successfully extracted {} and updated the file_processing_info table".format(file_name))
             count+=1
@@ -1521,6 +1506,7 @@ def native_pdf_extract_text(native_path,all_files,staging_path,source_type,file_
           #Creation of insert query for the extracted valid file path to the file_processing_info table and executed using
           #update_operation
           #***************************************************************************************************************
+            
             file_processing_info_query = file_processing_info + " values ('{}', '{}', '{}', '{}', '{}', '{}', '{}', '{}',{}, {} ,'{}')".format(source_type, file_name,     
             'PDF','.pdf', staging_path.replace('//','/'), 'Null', 0,0,'null','null','null')
             update_operation(file_processing_info_query,sql_conn,cursor)
@@ -1545,7 +1531,7 @@ def native_pdf_extract_text(native_path,all_files,staging_path,source_type,file_
 #into file_processing_info table
 #called by : external_folder_structure_process
 #**************************************************************************************************************************************       
-def scanned_pdf_extract_text(scanned_path,all_files,staging_path,source_type,file_processing_info,sql_conn,cursor):
+def scanned_pdf_extract_text(scanned_path,all_files,staging_path,source_type,file_processing_info,update_file_processing_info,file_processing_blob_all_txt_list,sql_conn,cursor):
     try: 
         logger.info("Executing scanned_pdf_extract_text function")
         scanned_files = glob.glob(scanned_path + '*.pdf')
@@ -1579,8 +1565,11 @@ def scanned_pdf_extract_text(scanned_path,all_files,staging_path,source_type,fil
             #Creation of insert query for the extracted valid file path to the file_processing_info table and executed using
             #update_operation
             #************************************************************************************************************************
-            file_processing_info_query = file_processing_info + " values ('{}', '{}', '{}', '{}', '{}', '{}', '{}', '{}' ,{}, {},'{}')".format(source_type, file_name,     
+            if file_path.replace('//','/').strip() not in file_processing_blob_all_txt_list:
+              file_processing_info_query = file_processing_info + " values ('{}', '{}', '{}', '{}', '{}', '{}', '{}', '{}' ,{}, {},'{}')".format(source_type, file_name,     
             'PDF','.pdf',staging_path.replace('//','/'), file_path.replace('//','/').strip(), 1,0,'GETDATE()','GETDATE()','null')
+            else:
+              file_processing_info_query = update_file_processing_info.format('GETDATE()',file_path.replace('//','/').strip()) 
             update_operation(file_processing_info_query,sql_conn,cursor)
             logger.info("Successfully extracted {} and updated the file_processing_info table".format(file_name))
             count+=1
@@ -1614,7 +1603,7 @@ def scanned_pdf_extract_text(scanned_path,all_files,staging_path,source_type,fil
 #file_processing_info table
 #ouput: returns raw_df which holds all the staging file path in dataframe which helps to move file to processed folder
 #**************************************************************************************************************************************
-def external_folder_structure_process(external_folder_structure,external_source_file_formats,file_processing_info,update_file_processing_info,sql_conn,cursor):
+def external_folder_structure_process(external_folder_structure,external_source_file_formats,file_processing_info,update_file_processing_info,file_processing_blob_all_txt_list,sql_conn,cursor):
   try:
     #raw_df will be used for moving the raw files into processed folder after the key-data extract
     #raw files and raw format will conatin each raw file path and formats in the list
@@ -1651,12 +1640,12 @@ def external_folder_structure_process(external_folder_structure,external_source_
                    #***************************************************************************************************
                    #native_pdf_extract_text: will extract data from the native pdf type
                    #**************************************************************************************************
-                      native_pdf_extract_text(native_path,all_files,staging_path,source_type,file_processing_info,update_file_processing_info,sql_conn,cursor)
+                      native_pdf_extract_text(native_path,all_files,staging_path,source_type,file_processing_info,update_file_processing_info,file_processing_blob_all_txt_list,sql_conn,cursor)
                   if scanned_path != None:
                    #***************************************************************************************************
                    #scanned_pdf_extract_text: will extract data from the scanned pdf type
                    #***************************************************************************************************
-                      scanned_pdf_extract_text(scanned_path,all_files,staging_path,source_type,file_processing_info,update_file_processing_info,sql_conn,cursor)
+                      scanned_pdf_extract_text(scanned_path,all_files,staging_path,source_type,file_processing_info,update_file_processing_info,file_processing_blob_all_txt_list,sql_conn,cursor)
         #**************************************************************
         #fetching all the Document file types from the sources
         #**************************************************************        
@@ -1670,7 +1659,7 @@ def external_folder_structure_process(external_folder_structure,external_source_
                   #extract_doc_text: will extract data from the documnet file type
                   #doc_file_list: will have all the document file path from each category
                   #***************************************************************************************************
-                  extract_doc_text(staging_path,doc_file_list,source_type,all_files,file_processing_info,update_file_processing_info,sql_conn,cursor)
+                  extract_doc_text(staging_path,doc_file_list,source_type,all_files,file_processing_info,update_file_processing_info,file_processing_blob_all_txt_list,sql_conn,cursor)
 
         #******************************************************************************
         #fetching all the message file types from the sources
@@ -1689,9 +1678,9 @@ def external_folder_structure_process(external_folder_structure,external_source_
                  if bool(pdf_out_look):
                    native_path, scanned_path = sharepoint_native_scanned_pdf_split(staging_path_pdf,pdf_out_look) 
                    if native_path != None:
-                     native_pdf_extract_text(native_path,all_files,staging_path_pdf,source_type,file_processing_info,update_file_processing_info,sql_conn,cursor)
+                     native_pdf_extract_text(native_path,all_files,staging_path_pdf,source_type,file_processing_info,update_file_processing_info,file_processing_blob_all_txt_list,sql_conn,cursor)
                    if scanned_path != None:
-                     scanned_pdf_extract_text(scanned_path,all_files,staging_path_pdf,source_type,file_processing_info,update_file_processing_info,sql_conn,cursor) 
+                     scanned_pdf_extract_text(scanned_path,all_files,staging_path_pdf,source_type,file_processing_info,update_file_processing_info,file_processing_blob_all_txt_list,sql_conn,cursor) 
 
         #**************************************************************
         #fetching all the csv file types from the sources
@@ -1704,7 +1693,7 @@ def external_folder_structure_process(external_folder_structure,external_source_
                 #csv_text_extract: will extract the data from the csv file type
                 #*********************************************************************
                 logger.info('{} csv file found in the staging_path'.format(len(csv_list)))
-                csv_text_extract(staging_path,csv_list,source_type,all_files,file_processing_info,sql_conn,cursor)
+                csv_text_extract(staging_path,csv_list,source_type,all_files,file_processing_info,update_file_processing_info,file_processing_blob_all_txt_list,sql_conn,cursor)
         #*******************************************************************************
         #fetching all the xlsx and xlsm file types from the sources
         #xlsx_list: will have all the xlsx format file path from each category
@@ -1715,13 +1704,13 @@ def external_folder_structure_process(external_folder_structure,external_source_
               xlsm_list =[]
               #xlsm_list = glob.glob(staging_path+'*.xlsm')
               xlsx_list = xlsx_list + xlsm_list
-              #print('xlsx_list',xlsx_list)
+              print('xlsx_list',xlsx_list)
               #****************************************************************************
               #xlsx_text_extract: will extract the data from the xlsx and xlsm file type
               #****************************************************************************
               if bool(xlsx_list):
                   logger.info('{} xlsx file found in the staging_path'.format(len(xlsx_list)))
-                  xlsx_text_extract(staging_path,xlsx_list[1:3],source_type,all_files,excel_files,file_processing_info,sql_conn,cursor)
+                  xlsx_text_extract(staging_path,xlsx_list[3:4],source_type,all_files,excel_files,file_processing_info,update_file_processing_info,file_processing_blob_all_txt_list,sql_conn,cursor)
     raw_df1['file_name'] = raw_files 
     return raw_df1
   except Exception as e:
@@ -1737,13 +1726,9 @@ def external_folder_structure_process(external_folder_structure,external_source_
 #*************************************************************************************************************************************
 
 def update_operation(query,sql_conn,cursor):
-  print(query)
-#   print('kk',query.find('.txt'))
-#   print(query.rfind('/dbfs'))
   all_text_find = query[query[:query.find('.txt')].rfind('/dbfs'):query.find('.txt')+4]
   print(all_text_find)
-  if len(query.split(',')) > 6:
-    #print(all_text_find)
+  if all_text_find:    
     extracted_file_list.append(all_text_find)
   cursor.execute(query)
   sql_conn.commit()  
@@ -1834,11 +1819,14 @@ def main():
       cursor = sql_conn.cursor()  
       external_folder_structure_query = config.get('mount_path', 'external_source_folder_structure')
       file_format_query = config.get('mount_path', 'external_source_file_formats')
+      file_processing_blob_all_txt_info = config.get('mount_path', 'file_processing_blob_all_txt_info')
       file_processing_info = config.get('mount_path', 'file_processing_info')
       update_file_processing_info = config.get('mount_path', 'update_file_processing_info')
       external_folder_structure = external_source_data(sql_conn,external_folder_structure_query)
       external_source_file_formats = external_source_data(sql_conn,file_format_query)['file_format'].values.tolist()
-      raw_df = external_folder_structure_process(external_folder_structure,external_source_file_formats,file_processing_info,update_file_processing_info,sql_conn,cursor)    
+      file_processing_blob_all_txt_list = external_source_data(sql_conn,file_processing_blob_all_txt_info)['blob_all_txt_file_path'].values.tolist()
+      print(file_processing_blob_all_txt_list)
+      raw_df = external_folder_structure_process(external_folder_structure,external_source_file_formats,file_processing_info,update_file_processing_info,file_processing_blob_all_txt_list,sql_conn,cursor)    
       external_file_process_query = config.get('mount_path', 'external_file_process')
       external_processed_files_df = external_source_data(sql_conn,external_file_process_query)
       unstruct_category_key_query = config.get('mount_path','unstruct_category_key')
