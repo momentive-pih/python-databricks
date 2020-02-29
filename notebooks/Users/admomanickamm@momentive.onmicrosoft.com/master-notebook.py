@@ -96,7 +96,7 @@ modified_column = config.get("mnt_sales_force","mnt_sales_force_last_modified_co
 adding_custom_column=['MatchedColumn','MatchedCategory','MatchedValue']
 sfdc_new_validate_column=["validate_category"]
 product_category=config.get('mnt_sales_force',"mnt_product_category")
-processing_file_name=''
+selected_product_type=product_category.split(",")
 
 def path_exists(file_path):
   try:
@@ -123,6 +123,7 @@ def main():
     old_file_flag=''
     query1=''  
     prod_flag=''
+    processing_file_name=''
     
     #Connecting SQL db to get SFDC data
     sql_cursor = SQL_connection("server","database","username","password")
@@ -130,15 +131,18 @@ def main():
     
     #Incope product
     product_info_df = pd.read_sql(product_info_query, sql_cursor)
-    print("sql_product_count -- ",len(product_info_df))
-    
+    print("sql_product_count --> ",len(product_info_df))   
+    product_info_df = product_info_df[product_info_df["Type"].isin(selected_product_type)]
+    product_info_df.drop_duplicates(inplace=True)
+    print("filtered product count --> ",len(product_info_df))   
     product_info_df=product_info_df.fillna("NULL")
+#     product_info_df=product_info_df[300:305]
     
+    #converting all column type into string
     product_columns=product_info_df.columns
     for item in product_columns:
       product_info_df[item]=product_info_df[item].astype('str').str.strip()
     
-    print("edited",len(product_info_df))
     #Identifed case table
     identified_sfdc_df=''
     identified_sfdc_df = pd.read_sql(sfdc_identified_info_query, sql_cursor)
@@ -158,13 +162,15 @@ def main():
         except Exception as e:
           logger.error("Error in sales force : Injecting SFDC ticket",exc_info=True)
           
-    if old_file_flag =='s':
-      old_file_flag=''
-    else:
-      detect_sfdc_info_query = historical_query
-      
+#     if old_file_flag =='s':
+#       old_file_flag=''
+#     else:
+#       detect_sfdc_info_query = historical_query
+    detect_sfdc_info_query = historical_query
+    
     #loading SFDC data into dataframe
     inscope_sfdc_info_df = pd.read_sql(detect_sfdc_info_query, sql_cursor)
+    print("sql_sfdc_count --> ",len(inscope_sfdc_info_df)) 
     inscope_sfdc_info_df=inscope_sfdc_info_df.fillna("NULL")
     inscope_sfdc_info_df=inscope_sfdc_info_df.replace({"None":"NULL"})
     
@@ -183,11 +189,12 @@ def main():
     to_remove_from_list=["momentive","com",'?',"@","*","€","â","”","!","https","www"]    
     inscope_sfdc_info_df["validate_category"] = inscope_sfdc_info_df[sfdc_validate_column].apply(lambda x: ' '.join(x), axis = 1) 
     inscope_sfdc_info_df["validate_category"] =inscope_sfdc_info_df["validate_category"].apply(optimize_function)
+    print("filtered_sfdc_count -->",len(inscope_sfdc_info_df))
     
     #writing sfdc data into blob storage for passing file to concurrent file process    
     if not os.path.exists(sfdc_text_folder):
         path_exists(sfdc_text_folder)
-    processing_file_name = sfdc_text_folder+filename+"_"+date+".csv"
+    processing_file_name = sfdc_text_folder+filename+".csv"
     print("file - ",processing_file_name)
     inscope_sfdc_info_df.to_csv(processing_file_name,index=False)
     
@@ -196,29 +203,40 @@ def main():
     starting_indx=-1
     argument_str=[]
     
-    if len(product_info_df)>0 and len(inscope_sfdc_info_df)>0:
+    def multiprocess_function(pass_value):
+      try:
+        status=dbutils.notebook.run('/Users/admomanickamm@momentive.onmicrosoft.com/parallel_process',timeout_seconds=0,arguments = {"to_checked":pass_value})
+        print(status)
+        logger.info(status)
+      except e as Exception:
+        logger.error("Error in parallel processing",status)
+    
+    if len(product_info_df)>0 and os.path.exists(processing_file_name):
+#     if len(product_info_df)>0:
       for column_type in check_product_column:
         try:
           category=["Type",column_type,"SUBCT"]
           df_checked=product_info_df[category]
           df_checked.drop_duplicates(inplace=True)
+          df_checked.fillna("deleted")
           to_be_checked=df_checked.values.tolist()
           starting_indx+=1
           for category_type,item,subct in to_be_checked:
             try:
-              temp_str=category_type+","+str(item)+","+subct+","+str(starting_indx)
-              row_product.append(temp_str)
-            except Exception as e:
-              logger.error("Error in sales force",exc_info=True)   
+              item=str(item).strip()
+              if item !='' and item.lower() != "deleted":
+                temp_str=category_type+","+str(item)+","+subct+","+str(starting_indx)
+                row_product.append(temp_str)
+            except Exception as e:          
+              logger.error("Error in sales force",exc_info=True) 
         except Exception as e:
           logger.error("Error in sales force",exc_info=True)
-    
-#     print("row_product",len(row_product))
-    #calling notebook for concurrent process      
-    pool = ThreadPool(25)
-    pool.map(lambda path:dbutils.notebook.run('/Users/admomanickamm@momentive.onmicrosoft.com/parallel_process',timeout_seconds=0,arguments = {"to_checked":path}),row_product) 
-    pool.close()
-    
+#       print(row_product)    
+      #calling notebook for concurrent process      
+      pool = ThreadPool(25)
+      logger.info("started parallel processing")
+      pool.map(multiprocess_function,row_product)
+      pool.close()     
   except Exception as e:
     logger.error("Error in sales force",exc_info=True)
 
@@ -234,30 +252,3 @@ if __name__ == '__main__':
 
 # COMMAND ----------
 
-product_info_df = pd.read_csv('/dbfs/mnt/momentive-sources-pih/sales-force/product_info_V2.csv',encoding="ISO-8859-1")
-    product_info_df = product_info_df[300:301]
-    inscope_sfdc_info_df=pd.read_csv('/dbfs/mnt/momentive-sources-pih/sales-force/backup/test.csv',encoding="ISO-8859-1")
-    inscope_sfdc_info_df=inscope_sfdc_info_df.fillna("NULL")
-    inscope_sfdc_info_df=inscope_sfdc_info_df.replace({"None":"NULL"})
-    output_df=pd.DataFrame()
-    check_product_column=["Text1","Text2","Text3"]
-    if len(product_info_df)>0 and len(inscope_sfdc_info_df)>0:
-      for col in check_product_column:
-        sfdc_temp_df=inscope_sfdc_info_df.copy()
-        colu=["Type",col,"SUBCT"]
-        df_checked=product_info_df[colu]
-        df_checked.drop_duplicates(inplace=True)
-        to_checked=df_checked.values.tolist()
-        added_str=[]
-        path="sucess"
-        for ty,val,subct in to_checked:
-          test_str=ty+","+val+","+subct
-          added_str.append(test_str)
-        print(added_str)
-        pool = ThreadPool(2) 
-        
-#         pool.map(lambda type1,value,subct:dbutils.notebook.run('/Users/admomanickamm@momentive.onmicrosoft.com/parallel_process',timeout_seconds=0,arguments = {"type1":type1,"value":value,"subct":subct}),to_checked)
-        pool.map(lambda path:dbutils.notebook.run('/Users/admomanickamm@momentive.onmicrosoft.com/parallel_process',timeout_seconds=0,arguments = {"to_checked":path,"path":path}),added_str)
-#         print("next")
-#         pool.close()
-      
