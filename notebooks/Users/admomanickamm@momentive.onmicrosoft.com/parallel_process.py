@@ -40,7 +40,6 @@ def SQL_connection(server,database,username,password):
 
 def adding_matched_values(temp_df,category_type,indx,value,subct):
   try:
-    print("type",category_type,"indx",indx,"value",value,"subct",subct) 
     indx=int(indx)
     matched_category=''
     matched_column=''
@@ -86,7 +85,6 @@ def adding_matched_values(temp_df,category_type,indx,value,subct):
     temp_df["MatchedColumn"]=matched_column
     temp_df["MatchedCategory"]=matched_category
     temp_df["MatchedValue"]=value
-    print(matched_column,matched_category,value)
     return temp_df
   except Exception as e:
     print("error in adding matched_values",e)
@@ -119,9 +117,12 @@ sql_cursor = SQL_connection("server","database","username","password")
 cursor=sql_cursor.cursor()
 adding_custom_column=['MatchedColumn','MatchedCategory','MatchedValue']
 cvalue=c_value.split(",")
-print("cvalue is -- ",cvalue)
+output_str = "|".join(cvalue)
+output_str=str(output_str[:-2])
+print("row --> ",cvalue)
 output_df=pd.DataFrame()
 custom_validate=["validate_category"]
+status=''
 
 def concurrent_function(cvalue):
   try:
@@ -131,16 +132,13 @@ def concurrent_function(cvalue):
     category_type=cvalue[0]
     subct=cvalue[2]
     indx=cvalue[3]
-    print("indx",cvalue[3])
     org_value=str(item)   
     value=org_value.strip().lower()
     if value.isdigit() and len(value)>0 :  
       value=int(value)
-      print(value)
       rgx = re.compile(r'((?<!lsr)(?<!silsoft)(?<!\d)(^|\s+|#){}(\D|$))'.format(value),re.I)  
       re_match=inscope_sfdc_info_df[inscope_sfdc_info_df[validate].str.contains(rgx,na=False)]               
       if len(re_match)>1: 
-          print("matched digit",item)
           digit_match_row=adding_matched_values(re_match,category_type,indx,org_value,subct)
           output_df=pd.concat([output_df,digit_match_row])
     elif len(value)>0 and ("?" not in value and "!" not in value):
@@ -151,34 +149,43 @@ def concurrent_function(cvalue):
       w_rgx = re.compile(r"(([^a-zA-Z]|^){}([^a-zA-Z]|$))".format(e_value),re.I)
       whole_match=inscope_sfdc_info_df[inscope_sfdc_info_df[validate].str.contains(w_rgx,na=False)]    
       if len(whole_match)>0:
-        print("matched",item)
         string_match_column=adding_matched_values(whole_match,category_type,indx,org_value,subct)
         output_df=pd.concat([output_df,string_match_column])
   except Exception as e:
     print("value error",e)
 
-concurrent_function(cvalue)
-# inserting into sfdc indentified table
-if len(output_df)>0:
-  output_df.drop_duplicates(inplace=True)
-  output_df=output_df[(sfdc_column+adding_custom_column)]
-  output_df=output_df.fillna("NULL")
-  output_df=output_df.replace({"None":"NULL"})
-  cursor=sql_cursor.cursor()
-  output_list = output_df.values.tolist()
-  print(len(output_list))
-  for row in output_list:
-    try:            
-      insert_data=''
-      for item in row:
-        item=str(item)
-        if "'" in item:
-          item=item.replace("'","''")
-        insert_data+="'"+item+"',"
-      if len(insert_data)>0:
-        insert_data=insert_data[:-1]
-        insert_query="insert into [momentive].[test_sfdc_identified_case] values ("+insert_data+")"
-        cursor.execute(insert_query)
-        sql_cursor.commit()
-    except Exception as e:
-      print("value error",e)
+try:
+  concurrent_function(cvalue)
+  # inserting into sfdc indentified table
+  if len(output_df)>0:
+    output_df.drop_duplicates(inplace=True)
+    output_df=output_df[(sfdc_column+adding_custom_column)]
+    output_df=output_df.fillna("NULL")
+    output_df=output_df.replace({"None":"NULL"})
+    cursor=sql_cursor.cursor()
+    output_list = output_df.values.tolist()
+    for row in output_list:
+      try:            
+        insert_data=''
+        for item in row:
+          item=str(item)
+          if "'" in item:
+            item=item.replace("'","''")
+          insert_data+="'"+item+"',"
+        if len(insert_data)>0:
+          insert_data=insert_data[:-1]
+          insert_query="insert into [momentive].[test1_sfdc_identified_case] values ("+insert_data+")"
+          cursor.execute(insert_query)
+          sql_cursor.commit()
+        status=output_str+" --> "+str(len(output_list))+" case detail(s) found"
+      except Exception as e:
+        status=output_str+" --> Oops error found while inserting"+str(e)
+        dbutils.notebook.exit(status)      
+  else:
+    status=output_str+" --> 0 case detail found"
+    
+except Exception as e:
+  status=output_str+" --> Oops error found in processing"+str(e)
+  dbutils.notebook.exit(status)
+  
+dbutils.notebook.exit(status)
