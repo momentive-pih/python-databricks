@@ -180,10 +180,10 @@ def main():
       string_join=big_regex.sub("", column_value)
       filtered_item=string_join.split()
       filtered_stop_words = [item for item in filtered_item if item not in stop_words]
-      tag_item=nltk.pos_tag(filtered_stop_words)
+#       tag_item=nltk.pos_tag(filtered_stop_words)
       final_str=''
-      pos_filter=[word for word,tag in tag_item if tag in ["NNP","NN","CD"]]
-      final_str=" ".join(pos_filter)
+#       pos_filter=[word for word,tag in tag_item if tag in ["NNP","NN","CD"]]
+      final_str=" ".join(filtered_stop_words)
       return final_str
     
     to_remove_from_list=["momentive","com",'?',"@","*","€","â","”","!","https","www"]    
@@ -224,11 +224,11 @@ def main():
           for category_type,item,subct in to_be_checked:
             try:
               item=str(item).strip()
-              if item !='' and item.lower() != "deleted":
-                temp_str=category_type+","+str(item)+","+subct+","+str(starting_indx)
+              if (item !='' and item.lower() != "deleted" and item.lower() !="null"):
+                temp_str=category_type+","+item+","+subct+","+str(starting_indx)
                 row_product.append(temp_str)
             except Exception as e:          
-              logger.error("Error in sales force",exc_info=True) 
+              logger.error("Error in sales force",exc_info=True)
         except Exception as e:
           logger.error("Error in sales force",exc_info=True)
 #       print(row_product)    
