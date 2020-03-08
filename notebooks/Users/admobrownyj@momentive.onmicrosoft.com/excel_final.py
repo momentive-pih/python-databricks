@@ -42,6 +42,17 @@ def SQL_connection():
 
 # COMMAND ----------
 
+sql_cursor = SQL_connection() 
+data = 'select * from momentive.unstructure_processed_data_testing'
+data_excel_external_source = pd.read_sql(data, sql_cursor) 
+
+# COMMAND ----------
+
+path = '/dbfs/mnt/momentive-sources-pih/sharepoint-pih/tox-study-pih/'
+data_excel_external_source.to_csv(path + 'Unstructured_data.csv', index=False, header=True)
+
+# COMMAND ----------
+
 def reading_excel_sources(source_type, sql_cursor):
   try:
     excel_momentive_source = 'select * from momentive.external_excel_source'
@@ -78,25 +89,34 @@ def data_validation_to_relevant_non_relevant_split(data_delta, valid_path, prima
     
     regex1 = re.compile(r'(\d+-\d+-\d+)', re.I) #CAS number formatting
     regex2 = re.compile(r'(Y-\d+)', re.I)  #Y-Number formatting
-    regex3 = re.compile(r'(\s+/+\s+)', re.I) #
+    regex3 = re.compile(r'tamil', re.I) #
     
     reg_ex = [] 
     reg_ex1 = []
     dbutils.fs.rm((valid_path +'relevant_data_files/').replace("/dbfs",""),True)
-  
+    data_delta1 = pd.DataFrame()
     if not data_delta.shape[0]==0:
       for i in range(1,data_delta.shape[0]):
         print('kamal',i)
         product = data_delta.loc[i, primary_column]
         print('product',product)
         reg_ex = regex1.findall(str(product)) or regex2.findall(str(product)) or regex3.findall(str(product))
-        if len(reg_ex)>0:
-          data_delta.loc[i, primary_column]=reg_ex[0]
         reg_ex1 = regex1.findall(str(product)) and regex2.findall(str(product))
         if len(reg_ex1)>0:
           data_copy = data_delta.loc[i,:]
+          data_copy.loc[i, primary_column]=reg_ex1[1]
           data_delta =  data_delta.append(data_copy, ignore_index=True)
           data_delta.loc[i, primary_column]=reg_ex1[0]
+        elif len(reg_ex)>0:
+         if '/' in reg_ex[0]:
+              for reg_len in reg_ex[0].split('/') :
+                print('reg_len',reg_len)
+                data_copy = data_delta.loc[i,:]
+                data_copy.loc[i, primary_column]=reg_len
+                data_delta =  data_delta.append(data_copy, ignore_index=True)
+                #data_delta.loc[i, primary_column]=reg_len 
+         else:  
+              data_delta.loc[i, primary_column]=reg_ex[0]                
       master_relevant = data_delta.copy()
       master_relevant.rename(columns = {primary_column:'Product'}, inplace=True)
       cas_df = data_delta[primary_column].isin(CAS_list)
@@ -274,9 +294,9 @@ def excel_extract2_key_value_pair(valid_path, sql_cursor):
     if not list_components:
       print('list is empty')
     else:
-      #for comp in list_components:
-        #if comp:
-          comp = 'GADSL'
+      for comp in list_components:
+        if comp:
+          
           component_data, component_sheet, primary_col = reading_excel_sources(comp.strip(), sql_cursor)
           for sheet in component_sheet:
             print('sheet',sheet)
@@ -300,8 +320,126 @@ def excel_extract2_key_value_pair(valid_path, sql_cursor):
 
 # COMMAND ----------
 
+path = '/dbfs/mnt/momentive-sources-pih/sharepoint-pih/tox-study-pih/sealants-silanes-library-pih/staging/excel/'
+
+file_list = glob.glob(path +'*.*')
+for file in file_list:
+  head, tail = os.path.split(file)
+  file_name = tail.rsplit('.',1)[0]
+  rex = regex1.findall(str(file_name))
+  if rex:
+     date = str(rex[0])
+
+# COMMAND ----------
+
+import glob
+import os
+import re
+from datetime import datetime
+rex1 = re.compile(r'\d{1,2}\s*\/\d{1,2}\s*\/\d{4}') #12/12/2002
+rex2 = re.compile(r'[a-zA-Z]*\s*\d{1,2}\s*,\s*\d{4}') #Jan 23, 2002
+rex3 = re.compile(r'\d{1,2}\s*\-\s*[a-zA-Z]*\s*\-\s*\d{4}') #12-Jan-2002
+rex4 = re.compile(r'\d{1,2}\s*\-\s*[a-zA-Z]*\s*\-\s*\d{2}') #12-Jan-02
+rex5 = re.compile(r'\d{1,4}\s*\-\d{1,2}\s*\-\d{2}') #2002-12-12rex5 = re.compile(r'\d{1,4}\s*\-\d{1,2}\s*\-\d{2}') #2002-12-12
+rex6 = re.compile(r'\d{1,2}\s*\-\d{1,2}\s*\-\d{4}') #2002-12-12
+               
+    
+#regex1 = re.compile(r'\d{1,2}\s*\/\d{1,2}\s*\/\d{4}","[a-zA-Z]*\s*\d{1,2}\s*,\s*\d{4}","\d{1,2}\s[a-zA-Z-]*\s\d{4}', re.I)
+path = '/dbfs/mnt/test-pih/python/'
+text_files = glob.glob(path + "*.txt")
+from datetime import datetime
+flag=0
+for text in text_files:
+  content = open(text, 'r').read() 
+  print(content)
+  rex_text = rex4.findall(content) 
+  rex_text1 = rex1.findall(content)
+  rex_text2 = rex2.findall(content)
+  rex_text3 = rex3.findall(content)
+  rex_text4 = rex5.findall(content)
+  rex_text5 = rex6.findall(content)
+  if len(rex_text)>0:
+    rex_text.sort(key = lambda date: datetime.strptime(date, '%d-%b-%y').date(), reverse=True) 
+    date = rex_text[0]
+    print(date)
+    flag=1
+  elif len(rex_text1)>0:
+    rex_text1.sort(key = lambda date: datetime.strptime(date, '%d/%b/%y').date(), reverse=True) 
+    date = rex_text1[0]
+    print(date)
+    flag=1
+  elif len(rex_text2)>0:
+    rex_text2.sort(key = lambda date: datetime.strptime(date, '%b %d,%Y').date(), reverse=True) 
+    date = rex_text2[0]
+    print(date)
+    flag=1
+  elif len(rex_text3)>0:
+    rex_text3.sort(key = lambda date: datetime.strptime(date, '%d-%b-%Y').date(), reverse=True) 
+    date = rex_text3[0]
+    print(date)
+    flag=1
+  elif len(rex_text4)>0:
+    rex_text4.sort(key = lambda date: datetime.strptime(date, '%Y-%m-%d').date(), reverse=True) 
+    date = rex_text4[0]
+    print(date)
+    flag=1
+  elif len(rex_text5)>0:
+    rex_text5.sort(key = lambda date: datetime.strptime(date, '%d-%m-%Y').date(), reverse=True) 
+    date = rex_text5[0]
+    print(date)
+    flag=1
+  else:
+    flag=0
+
+if flag==0:
+  file_list = glob.glob(path +'*.xlsx')
+  print(file_list)
+  for file in file_list:
+    head, tail = os.path.split(file)
+    file_name = tail.rsplit('.',1)[0]
+    rex = rex3.findall(str(file_name)) or rex6.findall(str(file_name)) or rex1.findall(str(file_name)) or rex2.findall(str(file_name))\
+          or rex4.findall(str(file_name)) or rex5.findall(str(file_name))
+    if rex:
+      date = str(rex[0])
+      print(date)
+  
+   #    datetime.date()
+
+      
+
+# COMMAND ----------
+
+def excel2csv(path, sheet):
+  try:
+     # write2csv(path, sheet)
+      wb = openpyxl.load_workbook(path)
+      sh = wb[sheet]
+      head, tail = os.path.split(path)
+      filename = path.split('/')[-1].split('.')[0]
+      file = head + '/' + 'temp/csv/' + sheet + '.csv'
+#    dbutils.fs.rm((absolute_path +'temp/csv/').replace("/dbfs",""),True)
+      dbutils.fs.mkdirs((head +'/temp/csv/').replace("/dbfs","dbfs:")) 
+      with open(file, 'w', encoding="utf-8") as f:
+          c = csv.writer(f)
+          for r in sh.rows:
+              c.writerow([cell.value for cell in r])
+      return file
+  except Exception as e:
+    print('Error in excel2csv', e)
+
+# COMMAND ----------
+
+import openpyxl
+import csv
+path = '/dbfs/mnt/momentive-sources-pih/sharepoint-pih/cognizant-pih/sap-bw-pih/staging/excel/Sales_Report.xlsm'
+wb = openpyxl.load_workbook(path) 
+allsheets = list(wb.sheetnames)
+excel2csv(path, allsheets[1])
+
+# COMMAND ----------
+
 def excel_functions():
-  valid_path = '/dbfs/mnt/momentive-sources-pih/sharepoint-pih/customer-communications-pih/mpm-2019-pih/analytics/processed/excel/GADSL-Reference-List/'
+  valid_path = '/dbfs/mnt/momentive-sources-pih/sharepoint-pih/customer-communications-pih/mpm-2019-pih/analytics/processed/excel/Master Registration List_Cognizant/'
   sql_cursor = SQL_connection()
   excel_extract2_key_value_pair(valid_path, sql_cursor)
   key_data_extract_external_source(valid_path)
@@ -316,6 +454,3 @@ excel_functions()
 
 unstructure_processed_data(key_value_df_master_data,sql_cursor,cursor)
 #update_operation(query,sql_cursor,cursor)
-
-# COMMAND ----------
-
