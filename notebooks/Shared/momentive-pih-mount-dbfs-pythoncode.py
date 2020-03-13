@@ -1,27 +1,15 @@
 # Databricks notebook source
-import glob
-import configparser
-import logging
-config = configparser.ConfigParser()
-#This configuration path should be configured in Blob storage
-config.read("/dbfs/mnt/momentive-configuration/config_test.ini")
-name = config.get('mount_path', 'name')
-logger = logging.getLogger('momentive_test.log')
-logger.setLevel(logging.DEBUG)
-fh = logging.FileHandler("test.log", 'w')
-fh.setLevel(logging.DEBUG)
-logger.addHandler(fh)
-try:
-  print(name)
-  logger.info('hello world')
-except Exception as e:
-  logger.error('Momentive in critical',exc_info=True)
+dbutils.fs.mount(
+  source = "wasbs://momentive-configuration@clditdevstorpih.blob.core.windows.net",
+  mount_point = "/mnt/momentive-configuration",
+  extra_configs = {"fs.azure.account.key.clditdevstorpih.blob.core.windows.net":"LY6FMa0XjZ38ODlIMCxsXVBCpvJpqxwFViNrfquehTmUqDZIosM1BO7DwMLZqCTAw2plt5qN7jAqF1Hw28U/pw=="})
 
+dbutils.fs.mount(
+  source = "wasbs://momentive-pih-logging@clditdevstorpih.blob.core.windows.net",
+  mount_point = "/mnt/momentive-pih-logging",
+  extra_configs = {"fs.azure.account.key.clditdevstorpih.blob.core.windows.net":"LY6FMa0XjZ38ODlIMCxsXVBCpvJpqxwFViNrfquehTmUqDZIosM1BO7DwMLZqCTAw2plt5qN7jAqF1Hw28U/pw=="})
 
-# COMMAND ----------
-
-# MAGIC %sh
-# MAGIC cat /databricks/driver/test.log
-
-# COMMAND ----------
-
+dbutils.fs.mount(
+  source = "wasbs://momentive-source@clditdevstoragepih.blob.core.windows.net",
+  mount_point = "/mnt/momentive-source",
+  extra_configs = {"fs.azure.account.key.clditdevstoragepih.blob.core.windows.net":"LY6FMa0XjZ38ODlIMCxsXVBCpvJpqxwFViNrfquehTmUqDZIosM1BO7DwMLZqCTAw2plt5qN7jAqF1Hw28U/pw=="})
