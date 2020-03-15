@@ -741,3 +741,6 @@ if __name__ == '__main__':
 
 # MAGIC %sh
 # MAGIC cat /databricks/driver/momentive_web_error.log
+
+# COMMAND ----------
+
