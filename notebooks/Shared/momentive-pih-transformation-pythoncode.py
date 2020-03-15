@@ -40,14 +40,15 @@ from dateutil import parser as date_parser
 config = configparser.ConfigParser()
 #This configuration path should be configured in Blob storage
 config.read("/dbfs/mnt/momentive-configuration/config-file.ini")
-
-
 #Loging environment setup
-logger = logging.getLogger('momentive5')
+current = datetime.now()
+logger = logging.getLogger('momentive_historical')
 logger.setLevel(logging.DEBUG)
-fh = logging.FileHandler("shared_main_code5.log", 'w')
+#fh = logging.FileHandler("momentive_process_" +str(current) +".log", 'w')
+fh = logging.FileHandler("momentive_process_tox_gadsl.log", 'w')
 fh.setLevel(logging.DEBUG)
-ch = logging.FileHandler("shared_main_code_error5.log", 'w')
+#ch = logging.FileHandler("momentive_process_error_"+str(current) +".log", 'w')
+ch = logging.FileHandler("momentive_process_gadsl_error.log", 'w')
 ch.setLevel(logging.ERROR)
 formatter =logging.Formatter(fmt = '%(asctime)s %(levelname)-8s %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
 fh.setFormatter(formatter)
@@ -102,6 +103,8 @@ def excel_date(content,excel_file):
       rex_text.sort(key = lambda date: datetime.strptime( date.replace(' ',''), '%d-%b-%y').date(), reverse=True) 
       date = rex_text[0]
       flag=1
+    except ValueError:
+      pass
     except Exception as e:
       logger.error(e,exc_info=True)
   if len(rex_text1)>0:
@@ -109,6 +112,8 @@ def excel_date(content,excel_file):
       rex_text1.sort(key = lambda date: datetime.strptime(date.replace(' ',''), '%d/%m/%Y').date(), reverse=True) 
       date = rex_text1[0]
       flag=1
+    except ValueError:
+      pass  
     except Exception as e:
       logger.error(e,exc_info=True)
   if len(rex_text2)>0:
@@ -116,6 +121,8 @@ def excel_date(content,excel_file):
       rex_text2.sort(key = lambda date: datetime.strptime(date.replace(' ',''), '%b %d,%Y').date(), reverse=True)       
       date = rex_text2[0]
       flag=1
+    except ValueError:
+      pass
     except Exception as e:
       logger.error(e,exc_info=True)
   if len(rex_text3)>0:
@@ -123,6 +130,8 @@ def excel_date(content,excel_file):
       rex_text3.sort(key = lambda date: datetime.strptime(date.replace(' ',''), '%d-%b-%Y').date(), reverse=True) 
       date = rex_text3[0]
       flag=1
+    except ValueError:
+      pass
     except Exception as e:
       logger.error(e,exc_info=True)
   if len(rex_text4)>0:
@@ -137,6 +146,8 @@ def excel_date(content,excel_file):
       rex_text5.sort(key = lambda date: datetime.strptime(date.replace(' ',''), '%d-%m-%Y').date(), reverse=True) 
       date = rex_text5[0]
       flag=1
+    except ValueError:
+      pass
     except Exception as e:
       logger.error(e,exc_info=True)
   if len(rex_text6)>0:
@@ -144,6 +155,8 @@ def excel_date(content,excel_file):
       rex_text6.sort(key = lambda date: datetime.strptime(date.replace(' ',''), '%Y-%m-%d').date(), reverse=True) 
       date = rex_text6[0]
       flag=1
+    except ValueError:
+      pass
     except Exception as e:
       logger.error(e,exc_info=True)
 
@@ -402,7 +415,7 @@ def excel_extract2_key_value_pair(valid_path, sql_conn,cursor,category,product_i
           comp = category
           component_data, component_sheet, primary_col = reading_excel_sources(comp.strip(), sql_conn,cursor)
           valid_files = glob.glob(valid_path + '*.csv')
-          for files in valid_files:            
+          for files in valid_files:  
             for sheet in component_sheet:
                 head, tail = os.path.split(files)
                 file_name = tail.rsplit('.',1)[0]    
@@ -681,6 +694,8 @@ def text_Key_extract(file,filter_df,content,staging_raw_file_path,file_images):
                     if match.group():                      
                       dbutils.fs.cp(target_temp[img_path].replace("/dbfs","dbfs:").replace('//','/')
                       ,file_images.replace("/dbfs","dbfs:").replace('//','/'))
+                      #shutil.copy(target_temp[img_path].replace("dbfs:","/dbfs").replace('//','/'),
+                      #file_images.replace("dbfs:","/dbfs").replace('//','/'))     
                       block_json['image_path']  = file_images +  target_temp[img_path].rsplit('/',1)[1]
                       image_flag='s'
                       break
@@ -765,127 +780,130 @@ def text_Key_extract(file,filter_df,content,staging_raw_file_path,file_images):
 
 def heavy_metals(heavy_file,file_loc,sql_conn,cursor,category,product_inscope_df, 
                                                  unstructure_processed_data_query,content,excel_date_found):
+  try:
+    data = pd.read_csv(heavy_file, encoding='iso-8859-1')
+    hvy_flag=0
+    value_of_column = 0
+    value_of_column_1 = 0
 
-  data = pd.read_csv(heavy_file, encoding='iso-8859-1')
-  hvy_flag=0
-  value_of_column = 0
-  value_of_column_1 = 0
-
-  heavy_metal_list = ['Aluminum', 'Antimony', \
-                    'Arsenic', 'Barium', 'Beryllium', \
-                    'Boron', 'Cadmium', 'Calcium', 'Carbon', \
-                    'Chromium', 'Cobalt', 'Copper', 'Hardness', \
-                    'Iron', 'Lead', 'Lithium', 'Magnesium', 'Manganese', \
-                    'Mercury', 'Molybdenum', 'Nitrogen', 'Nickel', 'Platinum', \
-                    'Phosphorous','Potassium', 'Selenium', 'Silicon', 'Silver', \
-                    'Sodium', 'Tin', 'Titanium', 'Zinc']
+    heavy_metal_list = ['Aluminum', 'Antimony', \
+                      'Arsenic', 'Barium', 'Beryllium', \
+                      'Boron', 'Cadmium', 'Calcium', 'Carbon', \
+                      'Chromium', 'Cobalt', 'Copper', 'Hardness', \
+                      'Iron', 'Lead', 'Lithium', 'Magnesium', 'Manganese', \
+                      'Mercury', 'Molybdenum', 'Nitrogen', 'Nickel', 'Platinum', \
+                      'Phosphorous','Potassium', 'Selenium', 'Silicon', 'Silver', \
+                      'Sodium', 'Tin', 'Titanium', 'Zinc']
 
 
-  data_heavy_metals_list = data.iloc[:,0].isin(heavy_metal_list)
-  uptd_list = data[data_heavy_metals_list]
-  if uptd_list.shape[0]>0:
-    valid_hvy_data = data.copy()
-    hvy_flag=1
-  else:
-    valid_hvy_data = data.copy()
+    data_heavy_metals_list = data.iloc[:,0].isin(heavy_metal_list)
+    uptd_list = data[data_heavy_metals_list]
+    if uptd_list.shape[0]>0:
+      valid_hvy_data = data.copy()
+      hvy_flag=1
+    else:
+      valid_hvy_data = data.copy()
 
-  if hvy_flag==1:
-    data_transpose = data.T
-    data_transpose.reset_index(drop=False, inplace=True)
-    for i in range(data_transpose.shape[0]):
-        row_list = list(data_transpose.loc[i,:])
-        start_row_count = list(set(row_list) & set(heavy_metal_list))
-        if len(start_row_count) >3:
-            value_of_column = i
-    valid_hvy_data = data_transpose[int(value_of_column):]  
-    valid_hvy_data = valid_hvy_data.rename(columns=valid_hvy_data.iloc[0])
-    valid_hvy_data.drop(valid_hvy_data.index[0], inplace=True)
-    valid_hvy_data.reset_index(drop=True, inplace=True)
-    valid_hvy_data.rename(columns = {'Unnamed: 0':'Product',
-                                 np.nan : 'Sample#'}, inplace = True)
+    if hvy_flag==1:
+      data_transpose = data.T
+      data_transpose.reset_index(drop=False, inplace=True)
+      for i in range(data_transpose.shape[0]):
+          row_list = list(data_transpose.loc[i,:])
+          start_row_count = list(set(row_list) & set(heavy_metal_list))
+          if len(start_row_count) >3:
+              value_of_column = i
+      valid_hvy_data = data_transpose[int(value_of_column):]  
+      valid_hvy_data = valid_hvy_data.rename(columns=valid_hvy_data.iloc[0])
+      valid_hvy_data.drop(valid_hvy_data.index[0], inplace=True)
+      valid_hvy_data.reset_index(drop=True, inplace=True)
+      valid_hvy_data.rename(columns = {'Unnamed: 0':'Product',
+                                   np.nan : 'Sample#'}, inplace = True)
 
-    for i in range(valid_hvy_data.shape[0]):
-        row_list = list(valid_hvy_data.loc[i,:])
-        start_row_count = list(set(row_list) & set(['Product']))
-        if len(start_row_count) >0:
-            value_of_column_1 = i
+      for i in range(valid_hvy_data.shape[0]):
+          row_list = list(valid_hvy_data.loc[i,:])
+          start_row_count = list(set(row_list) & set(['Product']))
+          if len(start_row_count) >0:
+              value_of_column_1 = i
 
-    valid_hvy_data = valid_hvy_data[int(value_of_column_1):]  
-    valid_hvy_data.drop(valid_hvy_data.index[0], inplace=True)
+      valid_hvy_data = valid_hvy_data[int(value_of_column_1):]  
+      valid_hvy_data.drop(valid_hvy_data.index[0], inplace=True)
 
-    col_list = valid_hvy_data.columns
-    if 'Metal' in col_list:
-        valid_hvy_data.drop(labels=['Metal'], axis=1, inplace=True)
-    master_relevant = valid_hvy_data.copy()
-    master_relevant.rename(columns = {'Product':'Product'}, inplace=True)
-    cas_df = valid_hvy_data['Product'].isin(product_inscope_df[product_inscope_df['Type'].str.contains('NUMCAS')]
-                       ['Text'].values.tolist())                                      
-    cas_final = valid_hvy_data[cas_df]
-    cas_final['Product_category'] = 'NUMCAS'
-    nam_prod_list_df = valid_hvy_data['Product'].isin(product_inscope_df[product_inscope_df['Type'].str.contains('NAMPROD')]
-                       ['Text'].values.tolist())
-    nam_prod_final = valid_hvy_data[nam_prod_list_df]
-    nam_prod_final['Product_category'] = 'NAMPROD'
-    bdt_df = valid_hvy_data['Product'].isin(product_inscope_df[product_inscope_df['Type'].str.contains('BDT')]
-                       ['Text'].values.tolist())
-    bdt_final = valid_hvy_data[bdt_df]
-    bdt_final['Product_category'] = 'BDT'
-    material_no_copy=valid_hvy_data['Product'].copy()
-    material_no_copy.columns='Product'     
-    material_no_copy = material_no_copy.apply(lambda x: '{0:0>18}'.format(x))
-    MATNBR_df = material_no_copy.isin(product_inscope_df[product_inscope_df['Type'].str.contains('MATNBR')]
-                       ['Text'].values.tolist())      
-    MATNBR_final = valid_hvy_data[MATNBR_df]
-    MATNBR_final['Product_category'] = 'MATNBR'
-    consol_data = pd.concat([cas_final, nam_prod_final, bdt_final,MATNBR_final])
-    consol_data.rename(columns = {'Product':'Product'}, inplace=True)
-    consol_data['is_relevant'] = 1
-    master_consol_data = consol_data.copy()
-    consol_data_relavent = consol_data.copy()
-    consol_data.drop(columns={'Product_category', 'is_relevant'}, inplace=True)   
-    master_consol_data.drop(columns={'Product_category', 'is_relevant'}, inplace=True)   
-    
-    if not consol_data.shape[0]==0:      
-      heavy_columns = consol_data.columns
-      consol_data = consol_data.astype(str)
-      heavy_columns = consol_data.columns
-      consol_data = consol_data.loc[:,~consol_data.columns.duplicated()]   
-      for heavy_index in consol_data.index:
-          data_extract={}
-          for   hvy_col in  heavy_columns: 
-            if hvy_col != 'Product':
-              data_extract[hvy_col] = consol_data[hvy_col][heavy_index].replace("'","''") 
-          if excel_date_found is not None:
-            data_extract['Date'] = excel_date_found.replace("'","''")
-          data_extract['file_path'] = heavy_file.replace("'","''")
-          data_extract['file_name'] = heavy_file.rsplit('/',1)[1].replace("'","''")
-          data_extract = json.dumps(data_extract,ensure_ascii=False)
-          data_extract = json.dumps(data_extract,ensure_ascii=False)
-          unstructure_processed_data(unstructure_processed_data_query,category,consol_data_relavent['Product_category']
-                                  [heavy_index],consol_data_relavent['Product'][heavy_index],data_extract,1,sql_conn,cursor)
-              
-    final = master_relevant.append(master_consol_data)
-    final.drop_duplicates(keep=False, inplace=True)
-    final.reset_index(drop=True, inplace=True)
-    final['is_relevant'] = 0
-    final['Product_category'] = np.nan
-    final['Product_category'].fillna("null", inplace = True) 
-    if not final.shape[0]==0:
-      final = final.astype(str)
-      heavy_columns = final.columns
-      final = final.loc[:,~final.columns.duplicated()]      
-      for heavy_index in final.index:
-          data_extract={}
-          for   hvy_col in  heavy_columns: 
-            if hvy_col != 'Product':           
-              data_extract[hvy_col] = str(final[hvy_col][heavy_index].replace("'","''")) 
-          if excel_date_found is not None:
-            data_extract['Date'] = excel_date_found.replace("'","''")
-          data_extract['file_path'] = heavy_file.replace("'","''")
-          data_extract['file_name'] = heavy_file.rsplit('/',1)[1].replace("'","''")
-          data_extract = json.dumps(data_extract,ensure_ascii=False)
-          unstructure_processed_data(unstructure_processed_data_query,category,'null',final['Product']
-                                  [heavy_index],data_extract,0,sql_conn,cursor)
+      col_list = valid_hvy_data.columns
+      if 'Metal' in col_list:
+          valid_hvy_data.drop(labels=['Metal'], axis=1, inplace=True)
+      master_relevant = valid_hvy_data.copy()
+      master_relevant.rename(columns = {'Product':'Product'}, inplace=True)
+      cas_df = valid_hvy_data['Product'].isin(product_inscope_df[product_inscope_df['Type'].str.contains('NUMCAS')]
+                         ['Text'].values.tolist())                                      
+      cas_final = valid_hvy_data[cas_df]
+      cas_final['Product_category'] = 'NUMCAS'
+      nam_prod_list_df = valid_hvy_data['Product'].isin(product_inscope_df[product_inscope_df['Type'].str.contains('NAMPROD')]
+                         ['Text'].values.tolist())
+      nam_prod_final = valid_hvy_data[nam_prod_list_df]
+      nam_prod_final['Product_category'] = 'NAMPROD'
+      bdt_df = valid_hvy_data['Product'].isin(product_inscope_df[product_inscope_df['Type'].str.contains('BDT')]
+                         ['Text'].values.tolist())
+      bdt_final = valid_hvy_data[bdt_df]
+      bdt_final['Product_category'] = 'BDT'
+      material_no_copy=valid_hvy_data['Product'].copy()
+      material_no_copy.columns='Product'     
+      material_no_copy = material_no_copy.apply(lambda x: '{0:0>18}'.format(x))
+      MATNBR_df = material_no_copy.isin(product_inscope_df[product_inscope_df['Type'].str.contains('MATNBR')]
+                         ['Text'].values.tolist())      
+      MATNBR_final = valid_hvy_data[MATNBR_df]
+      MATNBR_final['Product_category'] = 'MATNBR'
+      consol_data = pd.concat([cas_final, nam_prod_final, bdt_final,MATNBR_final])
+      consol_data.rename(columns = {'Product':'Product'}, inplace=True)
+      consol_data['is_relevant'] = 1
+      master_consol_data = consol_data.copy()
+      consol_data_relavent = consol_data.copy()
+      consol_data.drop(columns={'Product_category', 'is_relevant'}, inplace=True)   
+      master_consol_data.drop(columns={'Product_category', 'is_relevant'}, inplace=True)   
+
+      if not consol_data.shape[0]==0:      
+        heavy_columns = consol_data.columns
+        consol_data = consol_data.astype(str)
+        heavy_columns = consol_data.columns
+        consol_data = consol_data.loc[:,~consol_data.columns.duplicated()]   
+        for heavy_index in consol_data.index:
+            data_extract={}
+            for   hvy_col in  heavy_columns: 
+              if hvy_col != 'Product':
+                data_extract[hvy_col] = consol_data[hvy_col][heavy_index].replace("'","''") 
+            if excel_date_found is not None:
+              data_extract['Date'] = excel_date_found.replace("'","''")
+            data_extract['file_path'] = heavy_file.replace("'","''")
+            data_extract['file_name'] = heavy_file.rsplit('/',1)[1].replace("'","''")
+            data_extract = json.dumps(data_extract,ensure_ascii=False)
+            data_extract = json.dumps(data_extract,ensure_ascii=False)
+            unstructure_processed_data(unstructure_processed_data_query,category,consol_data_relavent['Product_category']
+                                    [heavy_index],consol_data_relavent['Product'][heavy_index],data_extract,1,sql_conn,cursor)
+
+      final = master_relevant.append(master_consol_data)
+      final.drop_duplicates(keep=False, inplace=True)
+      final.reset_index(drop=True, inplace=True)
+      final['is_relevant'] = 0
+      final['Product_category'] = np.nan
+      final['Product_category'].fillna("null", inplace = True) 
+      if not final.shape[0]==0:
+        final = final.astype(str)
+        heavy_columns = final.columns
+        final = final.loc[:,~final.columns.duplicated()]      
+        for heavy_index in final.index:
+            data_extract={}
+            for   hvy_col in  heavy_columns: 
+              if hvy_col != 'Product':           
+                data_extract[hvy_col] = str(final[hvy_col][heavy_index].replace("'","''")) 
+            if excel_date_found is not None:
+              data_extract['Date'] = excel_date_found.replace("'","''")
+            data_extract['file_path'] = heavy_file.replace("'","''")
+            data_extract['file_name'] = heavy_file.rsplit('/',1)[1].replace("'","''")
+            data_extract = json.dumps(data_extract,ensure_ascii=False)
+            unstructure_processed_data(unstructure_processed_data_query,category,'null',final['Product']
+                                    [heavy_index],data_extract,0,sql_conn,cursor)
+            
+  except Exception as e:
+        logger.error('Error while heavy metals from {}'.format(heavy_file),exc_info=True)          
 def table_data_extract(table_file,file_loc,sql_conn,cursor,category,product_inscope_df, 
                                            unstructure_processed_data_query,content):
   try:
@@ -905,6 +923,8 @@ def table_data_extract(table_file,file_loc,sql_conn,cursor,category,product_insc
           path_exists(processed_path)
         dbutils.fs.cp(staging_raw_file_path.replace("/dbfs","dbfs:").replace('//','/').strip(), 
                       processed_path.replace("/dbfs","dbfs:").replace('//','/'))
+        #shutil.copy(staging_raw_file_path.replace("dbfs:","/dbfs").replace('//','/'),processed_path.replace("dbfs:","/dbfs").replace('//','/'))  
+        
         if not tables:
             tables = camelot.read_pdf(table_file, pages='1', flavor='stream')
             flag =1
@@ -1109,7 +1129,8 @@ def relavent_image_extract(file,file_loc,content,product_inscope_df,category,fil
           
 def valid_files_copy(file,file_valid_type,data_extract):    
   try:
-    if not os.path.exists(file_valid_type):
+    print(file_valid_type)
+    if not os.path.exists(file_valid_type):      
       path_exists(file_valid_type)
     text_name = file_valid_type.replace("dbfs:","/dbfs") + file.split('/')[-1][:-4] + '.txt'
     with open(text_name, "w",encoding='utf8') as file_write:
@@ -1159,6 +1180,8 @@ def relavent_text_extract(file,staging_file,file_loc,content,product_inscope_df,
         path_exists(processed_path)
       dbutils.fs.cp(staging_raw_file_path.replace("/dbfs","dbfs:").replace('//','/').strip(), 
                     processed_path.replace("/dbfs","dbfs:"))
+      #shutil.copy(staging_raw_file_path.replace("dbfs:","/dbfs").replace('//','/'),processed_path.replace("dbfs:","/dbfs").replace('//','/'))          
+      
       data_extract['file_path']  = processed_path.replace("dbfs:","/dbfs") + staging_raw_file_path.rsplit('/',1)[1]
       data_extract['file_name']  = staging_raw_file_path.rsplit('/',1)[1]
       data_extract_copy=data_extract
@@ -1271,6 +1294,7 @@ def pattern_match_validation(sql_conn,external_processed_files_df,cursor,unstruc
     silicone_elastomer_product_query = config.get('mount_path','silicone_elastomer_product')
     silicone_elastomer_product_df =  external_source_data(sql_conn,silicone_elastomer_product_query) 
     matnbr_list = list(set(product_inscope_df[product_inscope_df['Type'].str.contains('MATNBR')]['Text1'].values.tolist()))
+    matnbr_list1 = [str(i).lstrip('0') for i in matnbr_list]
     bdt_list = list(set(product_inscope_df[product_inscope_df['Type'].str.contains('MATNBR')]['Text3'].values.tolist()))
     nam_prod_list = list(set(product_inscope_df[product_inscope_df['Type'].str.contains('NAMPROD')]['Text1'].values.tolist()))
     nam_prod_list_FDA = list(set(product_inscope_df[product_inscope_df['Type'].str.contains('NAMPROD') & 
@@ -1279,8 +1303,9 @@ def pattern_match_validation(sql_conn,external_processed_files_df,cursor,unstruc
     product_type_list_fda = ['NAMPROD'] * len(nam_prod_list_FDA) + ['BDT'] * len(bdt_list) +  ['NUMCAS'] * len(cas_list) + ['BDT'] * \
                             len(ontology_bdt_list) + ['NAMPROD'] * len(ontology_namprod_list) + ['ELA'] * len(ela_list)
     product_type_list= ['NAMPROD'] * len(nam_prod_list) + ['BDT'] * len(bdt_list) +  ['NUMCAS'] * len(cas_list) + ['MATNBR'] * \
-                       len(matnbr_list) + ['BDT'] *  len(ontology_bdt_list) + ['NAMPROD'] * len(ontology_namprod_list) + ['ELA'] * len(ela_list)    
-    product_valid_list = nam_prod_list + bdt_list + cas_list + matnbr_list + ontology_bdt_list + ontology_namprod_list + ela_list
+                    len(matnbr_list) + ['MATNBR'] * len(matnbr_list1) + ['BDT'] *  len(ontology_bdt_list) + ['NAMPROD'] * len(ontology_namprod_list) +  \
+                    ['ELA'] * len(ela_list) 
+    product_valid_list = nam_prod_list + bdt_list + cas_list + matnbr_list + matnbr_list1 + ontology_bdt_list + ontology_namprod_list + ela_list
     product_valid_list_fda = nam_prod_list_FDA + bdt_list + cas_list + ontology_bdt_list + ontology_namprod_list + ela_list 
     product_inscope_df = pd.DataFrame(columns=['Type', 'Text'])
     product_inscope_df['Type'] = product_type_list
@@ -1338,10 +1363,9 @@ def pattern_match_validation(sql_conn,external_processed_files_df,cursor,unstruc
                   #**************************************************************************
                   if  and_condition_df.empty == False and or_condition_df.empty == False:                 
                       and_condition_list = and_condition_df['pattern_keys'].values.tolist()                                        
-                      or_condition_list = or_condition_df['pattern_keys'].values.tolist()
-
+                      or_condition_list = or_condition_df['pattern_keys'].values.tolist()                    
                       if all(match.lower().strip() in content.lower() for match in and_condition_list):
-                          if any(match.lower() in content.lower() for match in or_condition_list):
+                          if any(match.lower().strip() in content.lower() for match in or_condition_list):
                               pattern_match_flag = 's'
                   #******************************************
                   #checking only filter condition 'and' 
@@ -1357,7 +1381,6 @@ def pattern_match_validation(sql_conn,external_processed_files_df,cursor,unstruc
                       or_condition_list = or_condition_df['pattern_keys'].values.tolist()
                       if any(match.lower().strip() in content.lower() for match in or_condition_list):
                           pattern_match_flag = 's'
-                          
                   #****************************************************
                   #Heavy metals checking
                   #*************************************************************
@@ -1377,7 +1400,7 @@ def pattern_match_validation(sql_conn,external_processed_files_df,cursor,unstruc
                         heavy_metals(heavy_file,file_loc,sql_conn,cursor,pattern_cat_match.strip(),product_inscope_df, 
                                              unstructure_processed_data_query,content,excel_date_found)
 
-                        break
+                        #break
                       else:
                         file_valid_flag =''
               #****************************************************
@@ -1403,7 +1426,8 @@ def pattern_match_validation(sql_conn,external_processed_files_df,cursor,unstruc
                         file_is_valid = file_is_valid_query.format(1,1,'null',file.replace("dbfs:","/dbfs"))                      
                         update_operation(file_is_valid,sql_conn,cursor)
                         if pattern_cat_match.strip() in ('US_FDA','EU-FDA'):
-                            product_inscope_df = product_inscope_df_fda                                          
+                            product_inscope_df = product_inscope_df_fda 
+                        
                         relavent_text_extract(file,staging_file,file_loc,content,product_inscope_df,pattern_cat_match.strip(),
                           file_is_valid_query,file_unique_list,sql_conn,cursor,unstruct_category_key_df,                      
                           raw_df,unstructure_processed_data_query,sil_elast_product_list)                                 
@@ -1428,7 +1452,7 @@ def pattern_match_validation(sql_conn,external_processed_files_df,cursor,unstruc
                         if pattern_cat_match.strip() in ('man_flow_diagram'):
                             product_inscope_df = product_inscope_df_fda
                         product_inscope_df = product_inscope_df_fda
-                        if file1.strip().endswith('.pdf'):# and not file.endswith('.xlsm') and not file.endswith('.csv'):
+                        if file1.strip().endswith('.pdf'):# and not file.endswith('.xlsm') and not file.endswith('.csv'):                          
                           file_is_valid = file_is_valid_query.format(1,1,'null',file.replace("dbfs:","/dbfs"))
                           update_operation(file_is_valid,sql_conn,cursor)
                           logger.info('{} its a image extraction type so moving this file to relavent_image_extract function \
@@ -1469,9 +1493,9 @@ def pattern_match_validation(sql_conn,external_processed_files_df,cursor,unstruc
                                     '.format(table_file))            
                       table_data_extract(table_file,file_loc,sql_conn,cursor,pattern_cat_match.strip(),product_inscope_df, 
                                            unstructure_processed_data_query,content)
-                      file_valid_flag ='s' 
-                       
+                      file_valid_flag ='s'              
           image_file_name = file.rsplit('/',1)[1]    
+          
           if file_valid_flag !='s':  
               for match in pattern_image_list:                
                 if match.lower().strip() in image_file_name.lower().strip(): 
@@ -1506,6 +1530,7 @@ def pattern_match_validation(sql_conn,external_processed_files_df,cursor,unstruc
               file = file.replace("/dbfs","dbfs:")
               file_loc = file_loc.replace("/dbfs","dbfs:") 
               dbutils.fs.cp(file, file_loc) 
+              #shutil.copy(file.replace("dbfs:","/dbfs").replace('//','/'),file_loc.replace("dbfs:","/dbfs").replace('//','/'))
               file_name = file.rsplit('/',1)[-1]
               file_loc = file_loc.replace("dbfs:","/dbfs") + file_name
               file_is_valid = file_is_valid_query.format(0,0,file_loc,file.replace("dbfs:","/dbfs"))
@@ -1536,6 +1561,7 @@ def copy_files(file_list, staging_pdf_type):
               file=file.replace("/dbfs","dbfs:").replace("//","/")
               file_loc = staging_pdf_type.replace("/dbfs","dbfs:").replace("//","/")
               dbutils.fs.cp(file, file_loc)
+              #shutil.copy(file.replace("dbfs:","/dbfs").replace('//','/'),file_loc.replace("dbfs:","/dbfs").replace('//','/'))
               logger.info(file + ' copied to ' + staging_pdf_type)
               count+=1
           except Exception as e:
@@ -1622,6 +1648,7 @@ def csv_text_extract(staging_path,csv_list,source_type,all_files,excel_files,fil
           if not os.path.exists(excel_files + file_name +'/'):
             path_exists(excel_files + file_name +'/')
           dbutils.fs.cp(abs_path.replace("/dbfs","dbfs:"), (excel_files + file_name+'/').replace("/dbfs","dbfs:"), recurse=True) 
+          #shutil.copy(abs_path.replace("dbfs:","/dbfs").replace('//','/'),(excel_files + file_name+'/').replace("dbfs:","/dbfs").replace('//','/'))
           for t in text:
             data = pd.read_csv(t, encoding='utf-8')
             text_csv = text_csv.append(data)
@@ -1684,13 +1711,15 @@ def xlsx_text_extract(staging_path,xlsx_list,source_type,all_files,excel_files,f
           path_exists(staging_path +'temp/temp_all_text/')
           file_path = all_files + file_name + '.txt'
           if not os.path.exists(excel_files + file_name +'/'):
-            path_exists(excel_files + file_name +'/')         
+            print('gadsl',excel_files + file_name +'/')         
           for sheet in allsheets:
             excel2csv(abs_path, sheet,staging_path)
           temp_path = glob.glob(staging_path+'temp/csv/'+'*.*')
           path_exists(staging_path +'temp/temp_all_text/')                    
           for i in range(len(temp_path)):
               dbutils.fs.cp(temp_path[i].replace("/dbfs","dbfs:"), (excel_files + file_name+'/').replace("/dbfs","dbfs:"), recurse=True)
+              #shutil.copy(temp_path[i].replace("dbfs:","/dbfs").replace('//','/'),(excel_files + \
+              #file_name+'/').replace("dbfs:","/dbfs").replace('//','/'))
               excel2txt(staging_path, temp_path[i])
           text_excel = glob.glob(staging_path +'temp/temp_all_text/'+'*.txt')
           text1 = pd.DataFrame()
@@ -1698,7 +1727,7 @@ def xlsx_text_extract(staging_path,xlsx_list,source_type,all_files,excel_files,f
             data = pd.read_csv(t, encoding='utf-8')
             text1 = text1.append(data)
           text1.to_csv(file_path)
-              
+          #print(excel_files + file_name + '/')    
           #**************************************************************************************************************
           #Creation of insert query for the extracted valid file path to the file_processing_info table using
           #update_operation
@@ -2030,7 +2059,7 @@ def pdf_to_image_converison(files,target):
     if not os.path.exists(destination):
       os.mkdir(destination)
     with wimage(filename=files, resolution=300) as img:
-       print('image')
+       #print('image')
        img.units = 'pixelsperinch'
        img.compression_quality = 99 
        img.save(filename = destination + '1.png')  
@@ -2207,12 +2236,12 @@ def external_folder_structure_process(external_folder_structure,external_source_
     for index in external_folder_structure.index:
       source_type = external_folder_structure['blob_src_type'][index].strip()
       mount_path = external_folder_structure['db_fs_mount_path'][index].strip()
-      staging_path =  (mount_path + external_folder_structure['absolute_path'][index]).replace('//','/')
+      staging_path =  (mount_path + external_folder_structure['absolute_path'][index]).replace('//','/').strip()
       try:
         logger.info('Text extraction started for {}'.format(staging_path))
-        if os.path.exists(staging_path):            
-            all_files = staging_path.split('staging',1)[0] + 'analytics/processed/all-text/'
-            excel_files = staging_path.split('staging',1)[0] + 'analytics/processed/excel/'
+        if os.path.exists(staging_path):   
+            all_files = staging_path.rsplit('staging',1)[0] + 'analytics/processed/all-text/'
+            excel_files = staging_path.rsplit('staging',1)[0] + 'analytics/processed/excel/'
             if not os.path.exists(all_files):
               path_exists(all_files)
             if not os.path.exists(excel_files):
@@ -2230,13 +2259,6 @@ def external_folder_structure_process(external_folder_structure,external_source_
                     #***************************************************************************************************
                     #sharepoint_native_scanned_pdf_split: will split the pdf files into two types like(native, scanned)
                     #***************************************************************************************************
-#                     pdf_file_list1=[]
-#                     for i in pdf_file_list:
-#                       pdf_check1='SF 1540 CIDP (P).pdf'
-#                       if pdf_check1 in i:
-#                         pdf_file_list1.append(i) 
-#                     raw_files = raw_files + pdf_file_list1
-#                    raw_format = raw_format + ['.pdf']*len(pdf_file_list1)
                     native_path, scanned_path = sharepoint_native_scanned_pdf_split(staging_path,pdf_file_list)
                     if native_path != None:
                      #***************************************************************************************************
@@ -2272,9 +2294,11 @@ def external_folder_structure_process(external_folder_structure,external_source_
           #*******************************************************************************      
 #             if '.msg' in  external_source_file_formats1:
 #                 msg_list = glob.glob(staging_path+'*.msg')
-#                 staging_path_pdf = staging_path.lower()+'staging/pdf/raw/' 
-#                 path_exists(staging_path_pdf)
+                
 #                 if bool(msg_list):  
+#                    staging_path_pdf = staging_path.lower()+'staging/pdf/raw/'  
+#                    path_exists(staging_path_pdf)
+                   
 #                    #*********************************************************************
 #                    #outlook_attachment: will fetch the attachments found in the messasge
 #                    #*********************************************************************              
@@ -2283,15 +2307,15 @@ def external_folder_structure_process(external_folder_structure,external_source_
 #                    raw_format = raw_format + ['.pdf']*len(pdf_out_look)
 #                    if bool(pdf_out_look):
 #                       native_path, scanned_path = sharepoint_native_scanned_pdf_split(staging_path_pdf,pdf_out_look)    
-#                       all_files1 = staging_path_pdf.split('staging',1)[0] + 'analytics/processed/all-text/'
+#                       all_files1 = staging_path_pdf.rsplit('staging',1)[0] + 'analytics/processed/all-text/'
 #                       if not os.path.exists(all_files1):
 #                         path_exists(all_files1)
-#                      if native_path != None:
-#                        native_pdf_extract_text(native_path,all_files1,staging_path_pdf,source_type,file_processing_info,
-#                        update_file_processing_info,file_processing_blob_all_txt_list,sql_conn,cursor)
-#                      if scanned_path != None:
-#                        scanned_pdf_extract_text(scanned_path,all_files1,staging_path_pdf,source_type,file_processing_info,
-#                        update_file_processing_info,file_processing_blob_all_txt_list,sql_conn,cursor) 
+#                       if native_path != None:
+#                          native_pdf_extract_text(native_path,all_files1,staging_path_pdf,source_type,file_processing_info,
+#                          update_file_processing_info,file_processing_blob_all_txt_list,sql_conn,cursor)
+#                       if scanned_path != None:
+#                          scanned_pdf_extract_text(scanned_path,all_files1,staging_path_pdf,source_type,file_processing_info,
+#                          update_file_processing_info,file_processing_blob_all_txt_list,sql_conn,cursor) 
 
           #******************************************************************************
           #fetching all the message file types from the sources
@@ -2306,7 +2330,7 @@ def external_folder_structure_process(external_folder_structure,external_source_
 #                    #*********************************************************************
 #                    #outlook_attachment: will fetch the attachments found in the messasge
 #                    #*********************************************************************              
-#                    pdf_email= eml_attachment(staging_path,eml_list,staging_path_pdf,raw_files,raw_format,all_files,file_processing_info,
+#                    pdf_email= eml_attachment(staging_path_pdf,eml_list,staging_path_pdf,raw_files,raw_format,all_files,file_processing_info,
 #                               update_file_processing_info,file_processing_blob_all_txt_list,sql_conn,cursor,source_type)
 #                    raw_files = raw_files + pdf_email
 #                    raw_format = raw_format + ['.pdf']*len(pdf_email)
@@ -2326,12 +2350,6 @@ def external_folder_structure_process(external_folder_structure,external_source_
                 csv_list = glob.glob(staging_path+'*.csv')
                 raw_files = raw_files + csv_list
                 raw_format = raw_format + ['.csv']*len(csv_list)                
-#                 csv_list1=[]
-#                 for i in csv_list:
-#                   csv_check1='6_CONEG.csv'
-#                   if csv_check1 in i:
-#                     csv_list1.append(i)
-#                 print(csv_list1)
                 if bool(csv_list):
                   #*********************************************************************
                   #csv_text_extract: will extract the data from the csv file type
@@ -2353,21 +2371,16 @@ def external_folder_structure_process(external_folder_structure,external_source_
                 raw_files = raw_files + xlsm_list
                 raw_format = raw_format + ['.xlsm']*len(xlsm_list)
                 xlsx_list = xlsx_list + xlsm_list
-                #print(xlsx_list)
-#                 xlsx_list1=[]
-#                 for i in xlsx_list:
-#                   pdf_check1='Selant - Monthly update 1-9-2018'
-#                   if pdf_check1 in i:
-#                     xlsx_list1.append(i)
                 #****************************************************************************
                 #xlsx_text_extract: will extract the data from the xlsx and xlsm file type
                 #****************************************************************************
-                #print('xlsx_list1',xlsx_list1)
                 if bool(xlsx_list):
                     logger.info('{} excel file found in the staging_path'.format(len(xlsx_list)))
                     xlsx_text_extract(staging_path,xlsx_list,source_type,all_files,excel_files,file_processing_info,
                     update_file_processing_info,file_processing_blob_all_txt_list,sql_conn,cursor)
+                
         else:
+          print('Invalid staging path {}'.format(staging_path))
           logger.info('Invalid staging path {}'.format(staging_path))
       except Exception as e:
         logger.error('Something went wrong while text extraction of {} folder'.format(staging_path), exc_info=True)             
@@ -2509,3 +2522,19 @@ if __name__ == '__main__':
     main()
   except Exception as e:
     logger.error('Somethng went wrong while calling main function',exc_info=True)
+
+# COMMAND ----------
+
+# MAGIC %sh
+# MAGIC cat /databricks/driver/momentive_process_gadsl_error.log
+
+# COMMAND ----------
+
+
+
+# COMMAND ----------
+
+print(current)
+
+# COMMAND ----------
+
