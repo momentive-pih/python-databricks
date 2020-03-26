@@ -141,6 +141,7 @@ def main():
       product_info_df = product_info_df[product_info_df["Type"].isin(selected_product_type)]
       product_info_df.drop_duplicates(inplace=True)
       print("filtered product count --> ",len(product_info_df))  
+#       product_info_df=product_info_df[130:140]
       product_info_df=product_info_df.fillna("NULL")
       
       #ontology product
@@ -242,7 +243,7 @@ def main():
     
     def multiprocess_function(pass_value):
       try:
-        status=dbutils.notebook.run('/Users/admomanickamm@momentive.onmicrosoft.com/parallel_process',timeout_seconds=0,arguments = {"to_be_checked":pass_value})
+        status=dbutils.notebook.run('/Users/admomanickamm@momentive.onmicrosoft.com/sfdc_parallel',timeout_seconds=0,arguments = {"to_be_checked":pass_value,"history_flag":history_flag})
         print(status)
         logger.info(status)
       except Exception as e:
@@ -297,7 +298,7 @@ def main():
         argument_str=creating_argument_value(to_be_checked,starting_indx,history_flag)
         row_product=row_product+argument_str
         update_ontology(to_be_checked)
-      else:
+      elif len(inc_ontology_product_df)>0:
         inc_ontology_df=inc_ontology_product_df[check_ontology_column]
         inc_ontology_df.drop_duplicates(inplace=True)
         to_be_checked=inc_ontology_df.values.tolist()
@@ -322,7 +323,7 @@ def main():
     if len(row_product)>0:
       thread_length=int((len(row_product))/2)
       if thread_length>25:
-        thread_length=35
+        thread_length=40
       print("thread_length",thread_length)
       pool = ThreadPool(thread_length)
       logger.info("started parallel processing")
@@ -341,3 +342,12 @@ def main():
 
 if __name__ == '__main__':
   main()
+
+
+# COMMAND ----------
+
+# MAGIC %sh
+# MAGIC cat /databricks/driver/sales_force.log
+
+# COMMAND ----------
+
