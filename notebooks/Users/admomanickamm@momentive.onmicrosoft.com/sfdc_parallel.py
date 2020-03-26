@@ -1,6 +1,7 @@
 # Databricks notebook source
 # Databricks notebook source
-c_value=dbutils.widgets.get("to_checked")
+c_value=dbutils.widgets.get("to_be_checked")
+history_flag=dbutils.widgets.get("history_flag")
 
 # COMMAND ----------
 
@@ -107,7 +108,12 @@ date = current_date[:10]
 config = configparser.ConfigParser()
 #This configuration path should be configured in Blob storage
 config.read("/dbfs/mnt/momentive-configuration/config-file.ini")
-filename = config.get('mnt_sales_force','mnt_sales_force_out_filename')
+history_filename = config.get('mnt_sales_force','mnt_sales_force_historical_filename')
+incremental_filename = config.get('mnt_sales_force','mnt_sales_force_incremental_filename')
+if history_flag =='false':
+    filename=incremental_filename
+else:
+    filename=history_filename
 sfdc_text_folder = config.get('mnt_sales_force','mnt_sales_force_split_files')
 sfdc_extract_column = config.get('mnt_sales_force',"mnt_sales_force_extract_column")
 sfdc_column = sfdc_extract_column.split(",")
@@ -176,7 +182,7 @@ try:
           insert_data+="'"+item+"',"
         if len(insert_data)>0:
           insert_data=insert_data[:-1]
-          insert_query="insert into [momentive].[test1_sfdc_identified_case] values ("+insert_data+")"
+          insert_query="insert into [momentive].[sfdc_identified_case] values ("+insert_data+")"
           cursor.execute(insert_query)
           sql_cursor.commit()
         status=output_str+" --> "+str(len(output_list))+" case detail(s) found"
