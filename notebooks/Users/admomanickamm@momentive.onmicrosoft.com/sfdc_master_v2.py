@@ -150,7 +150,7 @@ def main():
       product_info_df = product_info_df[product_info_df["Type"].isin(selected_product_type)]
       product_info_df.drop_duplicates(inplace=True)
       print("filtered product count --> ",len(product_info_df))   
-      product_info_df=product_info_df[0:200]
+#       product_info_df=product_info_df[0:10]
       product_info_df=product_info_df.fillna("NULL")
       
       #ontology product
@@ -174,7 +174,7 @@ def main():
     #converting all column type into string
     product_columns=product_info_df.columns
     for item in product_columns:
-      product_info_df[item]=product_info_df[item].astype('str').str.strip()
+      product_info_df[item]=product_info_df[item].astype(str).str.strip()
     
     #Historical and incremental logic
     if len(identified_sfdc_df)>0:
@@ -208,17 +208,16 @@ def main():
     else:
       filename=history_filename
       detect_sfdc_info_query = historical_query
-    print(detect_sfdc_info_query)
-#     detect_sfdc_info_query = historical_query
+#     print(detect_sfdc_info_query)
     
-#     try:
-#       #loading SFDC data into dataframe
-#       inscope_sfdc_info_df = pd.read_sql(detect_sfdc_info_query, sql_cursor)
-#       print("sql_sfdc_count --> ",len(inscope_sfdc_info_df)) 
-#       inscope_sfdc_info_df=inscope_sfdc_info_df.fillna("NULL")
-#       inscope_sfdc_info_df=inscope_sfdc_info_df.replace({"None":"NULL"})
-#     except Exception as e:
-#       logger.error("Error in accessing sfdc inscope db : ",exc_info=True)
+    try:
+      #loading SFDC data into dataframe
+      inscope_sfdc_info_df = pd.read_sql(detect_sfdc_info_query, sql_cursor)
+      print("sql_sfdc_count --> ",len(inscope_sfdc_info_df)) 
+      inscope_sfdc_info_df=inscope_sfdc_info_df.fillna("NULL")
+      inscope_sfdc_info_df=inscope_sfdc_info_df.replace({"None":"NULL"})
+    except Exception as e:
+      logger.error("Error in accessing sfdc inscope db : ",exc_info=True)
     
     #remove multiple whitespace with single space for validate column
 #     def optimize_function(column_value):
@@ -231,20 +230,20 @@ def main():
 # #       pos_filter=[word for word,tag in tag_item if tag in ["NNP","NN","CD"]]
 #       final_str=" ".join(filtered_stop_words)
 #       return final_str
-    
 #     to_remove_from_list=["momentive","com",'?',"@","*","€","â","”","!","https","www"] 
-#     for item in sfdc_validate_column:
-# #     inscope_sfdc_info_df["validate_category"] = inscope_sfdc_info_df[sfdc_validate_column].apply(lambda x: ' '.join(x), axis = 1) 
-#       inscope_sfdc_info_df[item] =inscope_sfdc_info_df[item].apply(optimize_function)
-#     print("filtered_sfdc_count -->",len(inscope_sfdc_info_df))
+
+    for item in sfdc_validate_column:
+      inscope_sfdc_info_df[item] =inscope_sfdc_info_df[item].replace(regex=r"\s+",value=" ")
+      
+    print("filtered_sfdc_count -->",len(inscope_sfdc_info_df))
     
     #writing sfdc data into blob storage for passing file to concurrent file process    
     if not os.path.exists(sfdc_text_folder):
         path_exists(sfdc_text_folder)
     processing_file_name = sfdc_text_folder+filename+".csv"
-#     print("file - ",processing_file_name)
-#     inscope_sfdc_info_df.to_csv(processing_file_name,index=False)
-    inscope_sfdc_info_df=pd.read_csv(processing_file_name)
+    print("file - ",processing_file_name)
+    inscope_sfdc_info_df.to_csv(processing_file_name,index=False)
+#     inscope_sfdc_info_df=pd.read_csv(processing_file_name)
   
     check_product_column=["Text1","Text2","Text3"] 
     check_ontology_column=["ontology_key","ontology_value","key_type","processed_flag"]
@@ -254,7 +253,7 @@ def main():
     
     def multiprocess_function(pass_value):
       try:
-        status=dbutils.notebook.run('/Users/admomanickamm@momentive.onmicrosoft.com/sfdc_parallel',timeout_seconds=0,arguments = {"to_be_checked":pass_value})
+        status=dbutils.notebook.run('/Users/admomanickamm@momentive.onmicrosoft.com/sfdc_parallel_v1',timeout_seconds=0,arguments = {"to_be_checked":pass_value})
         print(status)
         logger.info(status)
       except Exception as e:
@@ -338,8 +337,8 @@ def main():
 #     print("row",row_product)
     if len(row_product)>0:
       thread_length=int((len(row_product))/2)
-      if thread_length>48:
-        thread_length=50
+      if thread_length>50:
+        thread_length=60
       print("thread_length",thread_length)
       pool = ThreadPool(thread_length)
 #       pool = ThreadPool(10)
