@@ -1,7 +1,6 @@
 # Databricks notebook source
 # Databricks notebook source
 c_value=dbutils.widgets.get("to_be_checked")
-# history_flag=dbutils.widgets.get("history_flag")
 
 # COMMAND ----------
 
@@ -43,10 +42,11 @@ def SQL_connection(server,database,username,password):
 
 def adding_matched_values(temp_df,category_type,indx,value,subct,specid):
   try:
-    global product_info_df
-    indx=int(indx)
     matched_category=''
     matched_column=''
+    global product_info_df
+    if indx!="ontology":
+      indx=int(indx)   
     if category_type == "MATNBR":
       if indx==0:
         matched_category="MATERIAL NUMBER"
@@ -84,9 +84,6 @@ def adding_matched_values(temp_df,category_type,indx,value,subct,specid):
       else:
         matched_category="CHEMICAL NAME"
         matched_column="Text3"
-#         print("matched_category",matched_category)
-#         print("matched_column",matched_column)
-#     print(len(product_info_df))
     if subct=="PURE_SUB":
       real_spec_df=product_info_df[(product_info_df["Type"]=="SUBIDREL") & (product_info_df["Text1"]==specid)]
 #       print(real_spec_df)
@@ -94,8 +91,15 @@ def adding_matched_values(temp_df,category_type,indx,value,subct,specid):
         real_spec_df["Text2"]=real_spec_df["Text2"].str.strip()
         speclist=list(real_spec_df["Text2"].unique())
 #         print(speclist)
-        specid=";".join(speclist)   
+        specid=";".join(speclist) 
+    
     temp_df["MatchedProductValue"]=value
+    if indx=="ontology":    
+      temp_df["MatchedProductValue"]=category_type
+      matched_column=value
+      matched_category=subct
+      specid="ontology"
+      
     temp_df["MatchedProductColumn"]=matched_column
     temp_df["MatchedProductCategory"]=matched_category 
     temp_df["RealSpecId"]=specid
@@ -136,19 +140,14 @@ if len(cvalue)>5:
     filename=incremental_filename    
 sfdc_extract_column = config.get('mnt_sales_force',"mnt_sales_force_extract_column")
 sfdc_column = sfdc_extract_column.split(",")
-# inscope_sfdc_info_df=pd.read_csv('/dbfs/mnt/momentive-sources-pih/sales-force/backup/test.csv',encoding="ISO-8859-1")
 if os.path.exists(sfdc_text_folder+filename+".csv"):
   inscope_sfdc_info_df=pd.read_csv(sfdc_text_folder+filename+".csv",encoding="ISO-8859-1")
 print("processing file length - ",len(inscope_sfdc_info_df))
 #Connecting SQL db to get SFDC data
 sql_cursor = SQL_connection("server","database","username","password")
 cursor=sql_cursor.cursor()
-
+skip_list=["tel","email","ext","fax"]
 adding_custom_column=["MatchedSFDCColumn","MatchedSFDCValue",'MatchedProductValue','MatchedProductColumn','MatchedProductCategory','RealSpecId']
-# cvalue=c_value.split("---")
-# output_str = "|".join(cvalue)
-# output_str=str(output_str[:-2])
-# print("row --> ",cvalue)
 output_df=pd.DataFrame()
 status=''
 
@@ -180,39 +179,35 @@ def concurrent_function(cvalue):
           else:
             digit_value_list.append(value)
           for int_value in digit_value_list:
-            rgx = re.compile(r'((?<!lsr)(?<!silsoft)(?<!\d)(^|\s+|#){}(\D|$))'.format(int_value),re.IGNORECASE)  
+            rgx = re.compile(r'((?<!lsr)(?<!silsoft)(?<!\d)(^|\s+|#|\(){}([^-\d]|$))'.format(int_value),re.IGNORECASE)  
             re_match=inscope_sfdc_info_df[inscope_sfdc_info_df[validate].str.contains(rgx,na=False)] 
 #             print("rematch",len(re_match))
             if len(re_match)>0: 
                 for index, row in re_match.iterrows():
                   try:
-#                     ignore_data.append(row["EmailId"])
                     emailid=row["EmailId"]
-#                     print("insi",len(inscope_sfdc_info_df))
-#                     print("emailid",emailid)
-#                     print(len(inscope_sfdc_info_df))
-#                     print(len(inscope_sfdc_info_df[~inscope_sfdc_info_df["EmailId"]==emailid].index,inplace=True))
-#                     inscope_sfdc_info_df=inscope_sfdc_info_df[~inscope_sfdc_info_df["EmailId"]==row["EmailId"]]
                     inscope_sfdc_info_df.drop(inscope_sfdc_info_df[inscope_sfdc_info_df["EmailId"]==emailid].index,inplace=True)
-#                     print(len(inscope_sfdc_info_df))
                     validate_str=row[validate]
-#                     print("vali",validate_str)
                     result=rgx.search(validate_str)
-                    print("res",result)
                     if result:
                       index_search=result.start()
-                      print("index_search",index_search)
-                      print("fetchng",validate_str[index_search:(index_search+40)])
-                      matched_str=validate_str[(index_search-20):index_search+len(result.group())+20]
-                      print("matchedstr",matched_str)
+                      starting_index=index_search-20
+                      if starting_index<0:
+                        starting_index=0
+                      ending_index=index_search+len(result.group())+20
+                      if ending_index>len(validate_str):
+                        ending_index=len(validate_str)
+                      matched_str=validate_str[starting_index:ending_index]
                     else:
                       matched_str=''
                     re_match.loc[index,"MatchedSFDCColumn"]=validate
                     re_match.loc[index,"MatchedSFDCValue"]=matched_str
+                    for item in skip_list:
+                      if item in matched_str.lower():
+                        re_match.drop(re_match[re_match["EmailId"]==emailid].index,inplace=True)
+                        break
                   except Exception as e:
                     print("number_match",e)
-#                 print(re_match) 
-#                 print(re_match.columns)
                 digit_match_row=adding_matched_values(re_match,category_type,indx,org_value,subct,specid)
                 output_df=pd.concat([output_df,digit_match_row])
         elif len(value)>0 and ("?" not in value and "!" not in value):    
@@ -223,21 +218,21 @@ def concurrent_function(cvalue):
           w_rgx = re.compile(r"(([^a-zA-Z]|^){}([^a-zA-Z]|$))".format(e_value),re.I)
           whole_match=inscope_sfdc_info_df[inscope_sfdc_info_df[validate].str.contains(w_rgx,na=False)]    
           if len(whole_match)>0:
-#             print("whole_match",len(whole_match))
             for index, row in whole_match.iterrows():
                 try:
                   emailid=row["EmailId"]
-#                   print("word insi",len(inscope_sfdc_info_df))
-#                   print("emailid",emailid)
-#                   print(len(inscope_sfdc_info_df))
-#                   ignore_data.append(row["EmailId"])
                   inscope_sfdc_info_df.drop(inscope_sfdc_info_df[inscope_sfdc_info_df["EmailId"]==emailid].index,inplace=True)
-#                   print(len(inscope_sfdc_info_df))
                   validate_str=row[validate]
                   result=w_rgx.search(validate_str)
                   if result:
                       index_search=result.start()
-                      matched_str=validate_str[(index_search-20):index_search+len(result.group())+20]
+                      starting_index=index_search-20
+                      if starting_index<0:
+                        starting_index=0
+                      ending_index=index_search+len(result.group())+20
+                      if ending_index>len(validate_str):
+                        ending_index=len(validate_str)
+                      matched_str=validate_str[starting_index:ending_index]
                   else:
                     matched_str=''
                   whole_match.loc[index,"MatchedSFDCColumn"]=validate
@@ -286,7 +281,7 @@ except Exception as e:
   status=output_str+" --> Oops error found in processing"+str(e)
   dbutils.notebook.exit(status)
   
-# dbutils.notebook.exit(status)
+dbutils.notebook.exit(status)
 
 
 # COMMAND ----------
