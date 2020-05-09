@@ -49,13 +49,10 @@ import json
 import nltk
 
 #nltk initializer 
-nltk.download('stopwords')
-nltk.download('averaged_perceptron_tagger')
-nltk.download('punkt')
 from nltk.tokenize import sent_tokenize
 from nltk.corpus import stopwords
-#stop word removal
-stop_words=list(set(stopwords.words("english")))
+# #stop word removal
+# stop_words=list(set(stopwords.words("english")))
 current_date = str(datetime.datetime.now())
 date = current_date[:10]
 #Loging environment setup
@@ -81,11 +78,14 @@ incremental_filename = config.get('mnt_sales_force','mnt_sales_force_incremental
 product_filename=config.get('mnt_sales_force','mnt_product_information_filename')
 #sql queries info
 sfdc_identified_info_query=config.get('mnt_sales_force',"mnt_sfdc_identified_case_info_query")
+sfdc_identified_case_table=config.get('mnt_sales_force',"mnt_sfdc_identifed_table_name")
 product_info_query = config.get('mnt_sales_force',"mnt_product_information_query")
 ontology_info_query = config.get('mnt_sales_force',"mnt_ontology_product_query")
 incremental_ontology_query = config.get('mnt_sales_force',"mnt_ontology_incremental_product_query")
 historical_query = config.get('mnt_sales_force',"mnt_sales_force_historical_query")
 ontology_update_query = config.get('mnt_sales_force',"mnt_ontology_update_query")
+account_details_query=config.get('mnt_sales_force','mnt_accountdetails_query')
+email_attachment_query=config.get('mnt_sales_force','mnt_attachment_query')
 table_connector="momentive"
 view_connector="dbo"
 #column names
@@ -103,7 +103,6 @@ sfdc_new_validate_column=config.get("mnt_sales_force","mnt_adding_merge_column")
 sfdc_new_validate_column=sfdc_new_validate_column.split(",")
 product_category=config.get('mnt_sales_force',"mnt_product_category")
 selected_product_type=product_category.split(",")
-
 
 def path_exists(file_path):
   try:
@@ -137,6 +136,7 @@ def main():
       cursor=sql_cursor.cursor()
       
       #Incope product
+      print(product_info_query)
       product_info_df = pd.read_sql(product_info_query, sql_cursor)
       print("sql_product_count --> ",len(product_info_df)) 
       #writing product into file
@@ -150,7 +150,9 @@ def main():
       product_info_df = product_info_df[product_info_df["Type"].isin(selected_product_type)]
       product_info_df.drop_duplicates(inplace=True)
       print("filtered product count --> ",len(product_info_df))   
-#       product_info_df=product_info_df[0:10]
+      product_info_df=product_info_df[7529:7530]
+      print(product_info_df["Text3"])
+      print(product_info_df)
       product_info_df=product_info_df.fillna("NULL")
       
       #ontology product
@@ -167,6 +169,16 @@ def main():
       identified_sfdc_df = pd.read_sql(sfdc_identified_info_query, sql_cursor)
       print("sql_identified sfdc record count --> ",len(identified_sfdc_df))
       identified_sfdc_df=identified_sfdc_df.fillna("NULL")
+      org_identified_sfdc_df=identified_sfdc_df
+      
+      #Account table
+      account_df = pd.read_sql(account_details_query, sql_cursor)
+      account_df=account_df.fillna("NULL")
+      
+      #email attchment table
+      email_attachment_df = pd.read_sql(email_attachment_query, sql_cursor)
+      email_attachment_df=email_attachment_df.fillna("NULL")
+      
       
     except Exception as e:
       logger.error("Error in accessing db : ",exc_info=True)
@@ -219,23 +231,20 @@ def main():
     except Exception as e:
       logger.error("Error in accessing sfdc inscope db : ",exc_info=True)
     
-    #remove multiple whitespace with single space for validate column
-#     def optimize_function(column_value):
-#       big_regex = re.compile('|'.join(map(re.escape, to_remove_from_list)))
-#       string_join=big_regex.sub("", column_value)
-#       filtered_item=string_join.split()
-#       filtered_stop_words = [item for item in filtered_item if item not in stop_words]
-# #       tag_item=nltk.pos_tag(filtered_stop_words)
-#       final_str=''        
-# #       pos_filter=[word for word,tag in tag_item if tag in ["NNP","NN","CD"]]
-#       final_str=" ".join(filtered_stop_words)
-#       return final_str
-#     to_remove_from_list=["momentive","com",'?',"@","*","€","â","”","!","https","www"] 
+    #Data cleansing
+    def optimize_function(column_value):
+      #stop word removal
+      stop_words=list(set(stopwords.words("english")))
+      filtered_item=column_value.split()
+      filtered_stop_words = [item for item in filtered_item if item not in stop_words]
+      final_str=''        
+      final_str=" ".join(filtered_stop_words)
+      return final_str
 
+    #replace extra spaces between words 
     for item in sfdc_validate_column:
       inscope_sfdc_info_df[item] =inscope_sfdc_info_df[item].replace(regex=r"\s+",value=" ")
-      
-    print("filtered_sfdc_count -->",len(inscope_sfdc_info_df))
+#       inscope_sfdc_info_df[item] =inscope_sfdc_info_df[item].apply(optimize_function)
     
     #writing sfdc data into blob storage for passing file to concurrent file process    
     if not os.path.exists(sfdc_text_folder):
@@ -243,7 +252,7 @@ def main():
     processing_file_name = sfdc_text_folder+filename+".csv"
     print("file - ",processing_file_name)
     inscope_sfdc_info_df.to_csv(processing_file_name,index=False)
-#     inscope_sfdc_info_df=pd.read_csv(processing_file_name)
+    inscope_sfdc_info_df=pd.read_csv(processing_file_name)
   
     check_product_column=["Text1","Text2","Text3"] 
     check_ontology_column=["ontology_key","ontology_value","key_type","processed_flag"]
@@ -253,7 +262,7 @@ def main():
     
     def multiprocess_function(pass_value):
       try:
-        status=dbutils.notebook.run('/Users/admomanickamm@momentive.onmicrosoft.com/sfdc_parallel_v1',timeout_seconds=0,arguments = {"to_be_checked":pass_value})
+        status=dbutils.notebook.run('/Users/admomanickamm@momentive.onmicrosoft.com/sfdc_parallel_v2',timeout_seconds=0,arguments = {"to_be_checked":pass_value})
         print(status)
         logger.info(status)
       except Exception as e:
@@ -332,25 +341,105 @@ def main():
         argument_str=creating_argument_value(to_be_checked,starting_indx,file_indication)
         row_product=row_product+argument_str
         update_ontology(to_be_checked)
-#       print(row_product)    
-      #calling notebook for concurrent process 
-#     print("row",row_product)
+
+    #calling notebook for concurrent process 
     if len(row_product)>0:
       thread_length=int((len(row_product))/2)
-      if thread_length>50:
-        thread_length=60
-      print("thread_length",thread_length)
-      pool = ThreadPool(thread_length)
-#       pool = ThreadPool(10)
+      if thread_length>25:
+        thread_length=30
+#       print("thread_length",thread_length)
+      pool = ThreadPool(4)
       logger.info("started parallel processing")
       pool.map(multiprocess_function,row_product)
       pool.close()
       
-    #overwrite_old_history_file
-    if histroy_flag=="false" and os.path.exists(processing_file_name) and len(inscope_sfdc_info_df)>0:
-      history_df=pd.read_csv(sfdc_text_folder+history_filename+".csv",encoding="ISO-8859-1")
-      history_df = pd.concat([history_df,inscope_sfdc_info_df])
-      history_df.to_csv(sfdc_text_folder+history_filename+".csv",index=False)
+    #update_old_history_file
+    if history_flag=="false" and os.path.exists(processing_file_name) and len(inscope_sfdc_info_df)>0:
+      try:
+        history_df=pd.read_csv(sfdc_text_folder+history_filename+".csv",encoding="ISO-8859-1")
+        history_df = pd.concat([history_df,inscope_sfdc_info_df])
+        history_df.to_csv(sfdc_text_folder+history_filename+".csv",index=False)
+        logger.info("Successfully updated sfdc historical file at"+sfdc_text_folder+history_filename+".csv")
+      except Exception as e:
+        logger.error("Error in updating sfdc historical file",exc_info=True)
+      
+    #updating accountname function   
+    def updating_accountinfo_with_sfdc(account_df,sfdc_df):
+      try:
+        edited_account_df=pd.DataFrame()
+        print("len updating_accountinfo_with_sfdc",len(sfdc_df))
+        parentid=list(account_df["parentid"].unique())
+        account_with_null=sfdc_df[sfdc_df["Accountname"]=="NULL"]
+        print("len without null updating_accountinfo_with_sfdc",len(account_with_null))
+        account_list=list(account_with_null["AccountId"].unique()) 
+        logger.info("updating account information in sfdc")
+        for item in parentid:  
+          try:
+            if item in account_list:
+              edited_account_df=account_df[account_df["parentid"]==item]
+              name_list=list(edited_account_df["name"].unique())
+              name_str="||".join(name_list)
+              if "'" in name_str:
+                  name_str=name_str.replace("'","''")
+              update_query="update "+table_connector+"."+sfdc_identified_case_table+" set Accountname='"+name_str+"' where AccountId='"+item+"'"
+    #           print(update_query)
+              cursor.execute(update_query)
+              sql_cursor.commit()
+          except Exception as e:
+            logger.error("Error in updating account name",exc_info=True)
+          #updating NA value
+        try:
+          update_query="update "+table_connector+"."+sfdc_identified_case_table+" set Accountname='Not Found' where Accountname='NULL'"
+          cursor.execute(update_query)
+          sql_cursor.commit()
+        except Exception as e:
+          logger.error("Error in updating account name as Not found where NULL",exc_info=True)
+#           break
+      except Exception as e:
+        logger.error("Error in updating accountinfo function",exc_info=True)
+    
+    def updating_email_attachment_info_with_sfdc(attachment_df,sfdc_df):
+      try:
+        logger.info("updating email_attachment_info in sfdc")
+        print("len updating_email_attachment",len(sfdc_df))
+        edited_account_df=pd.DataFrame()
+        parentid=list(attachment_df["ParentId"].unique()) 
+        email_with_null=sfdc_df[sfdc_df["EmailAttachment"]=="NULL"]
+        print("le without null updating_email_attachment_info_with_sfdc",len(email_with_null))
+        emailid_list=list(email_with_null["EmailId"].unique())
+        for item in parentid:  
+          try:
+            if item in emailid_list:
+#               print("attc",item)
+              edited_account_df=attachment_df[attachment_df["ParentId"]==item]
+              edited_account_df["fullpath"]=edited_account_df["FilePath"]+edited_account_df["Name"]
+              name_list=list(edited_account_df["fullpath"].unique())
+              name_str="|:|".join(name_list)
+              if "'" in name_str:
+                  name_str=name_str.replace("'","''")
+              update_query="update "+table_connector+"."+sfdc_identified_case_table+" set EmailAttachment='"+name_str+"' where EmailId='"+item+"'"
+#               print(update_query)            
+              cursor.execute(update_query)
+              sql_cursor.commit()
+#               break           
+          except Exception as e:
+            logger.error("Error in updating attachment name",exc_info=True)
+        try:
+          update_query="update "+table_connector+"."+sfdc_identified_case_table+" set EmailAttachment='Not Found' where EmailAttachment='NULL'"
+          cursor.execute(update_query)
+          sql_cursor.commit()
+        except Exception as e:
+          logger.error("Error in updating attachment name as Not founf where NULL",exc_info=True) 
+#           break
+      except Exception as e:
+        logger.error("Error in updating attachment info function",exc_info=True)
+      
+    print("sfdc_columns",org_identified_sfdc_df.columns)
+    #updating accountname with output
+    updating_accountinfo_with_sfdc(account_df,org_identified_sfdc_df)
+    
+    #updating email attachment name with output
+    updating_email_attachment_info_with_sfdc(email_attachment_df,org_identified_sfdc_df)
     
   except Exception as e:
     logger.error("Error in sales force",exc_info=True)
