@@ -96,9 +96,20 @@ def adding_matched_values(temp_df,category_type,indx,value,subct,specid):
     temp_df["MatchedProductValue"]=value
     if indx=="ontology":    
       temp_df["MatchedProductValue"]=category_type
-      matched_column=value
+      matched_column="Ontology - "+str(value)
       matched_category=subct
-      specid="ontology"
+      if subct=="NAMPROD":
+        real_spec_df=product_info_df[(product_info_df["Type"]=="NAMPROD") & (product_info_df["Text1"]==str(category_type).strip()) & (product_info_df["Text1"]=="REAL_SUB")]
+      elif subct=="BDT":
+        real_spec_df=product_info_df[(product_info_df["Type"]=="MATNBR") & (product_info_df["Text3"]==str(category_type).strip())]
+      if len(real_spec_df)>0:
+        real_spec_df["Text2"]=real_spec_df["Text2"].str.strip()
+        speclist=list(real_spec_df["Text2"].unique())
+#         print(speclist)
+        specid=";".join(speclist) 
+      else:
+        specid="ontology"                         
+#       specid="ontology"
       
     temp_df["MatchedProductColumn"]=matched_column
     temp_df["MatchedProductCategory"]=matched_category 
@@ -131,6 +142,11 @@ if os.path.exists(sfdc_text_folder+product_filename+".csv"):
   product_info_df=pd.read_csv(sfdc_text_folder+product_filename+".csv",encoding="ISO-8859-1") 
 sfdc_info_validate_column = config.get('mnt_sales_force',"mnt_sales_force_validate_column")
 sfdc_validate_column  = sfdc_info_validate_column.split(",")
+sfdc_custom_column=config.get('mnt_sales_force',"mnt_adding_custom_column_sdfc")
+adding_custom_column=sfdc_custom_column.split(",")
+skip_list=config.get('mnt_sales_force',"mnt_skip_list")
+skip_list=skip_list.split(",")
+sfdc_insert_query=config.get('mnt_sales_force',"mnt_sfdc_insert_query")
 cvalue=c_value.split("---")
 output_str = "|".join(cvalue)
 if len(cvalue)>5:
@@ -146,8 +162,6 @@ print("processing file length - ",len(inscope_sfdc_info_df))
 #Connecting SQL db to get SFDC data
 sql_cursor = SQL_connection("server","database","username","password")
 cursor=sql_cursor.cursor()
-skip_list=["tel","email","ext","fax"]
-adding_custom_column=["MatchedSFDCColumn","MatchedSFDCValue",'MatchedProductValue','MatchedProductColumn','MatchedProductCategory','RealSpecId']
 output_df=pd.DataFrame()
 status=''
 
@@ -166,11 +180,9 @@ def concurrent_function(cvalue):
     value=org_value.strip().lower()
     ignore_data=[]
     edit_inscope_sfdc=inscope_sfdc_info_df.copy()
+    #validating required sfdc column 
     for validate in sfdc_validate_column:
       try:
-#         print("column",validate)
-#         print("value",value)
-  #       inscope_sfdc_info_df=inscope_sfdc_info_df[~inscope_sfdc_info_df["EmailId"].isin(ignore_data)]
         if value.isdigit() and len(value)>0 :  
           digit_value_list=[]
           if value[0]=="0":        
@@ -181,7 +193,6 @@ def concurrent_function(cvalue):
           for int_value in digit_value_list:
             rgx = re.compile(r'((?<!lsr)(?<!silsoft)(?<!\d)(^|\s+|#|\(){}([^-\d]|$))'.format(int_value),re.IGNORECASE)  
             re_match=inscope_sfdc_info_df[inscope_sfdc_info_df[validate].str.contains(rgx,na=False)] 
-#             print("rematch",len(re_match))
             if len(re_match)>0: 
                 for index, row in re_match.iterrows():
                   try:
@@ -207,7 +218,7 @@ def concurrent_function(cvalue):
                         re_match.drop(re_match[re_match["EmailId"]==emailid].index,inplace=True)
                         break
                   except Exception as e:
-                    print("number_match",e)
+                    status=output_str+" --> Oops error found in looping sfdc validate column"+str(e)
                 digit_match_row=adding_matched_values(re_match,category_type,indx,org_value,subct,specid)
                 output_df=pd.concat([output_df,digit_match_row])
         elif len(value)>0 and ("?" not in value and "!" not in value):    
@@ -238,19 +249,21 @@ def concurrent_function(cvalue):
                   whole_match.loc[index,"MatchedSFDCColumn"]=validate
                   whole_match.loc[index,"MatchedSFDCValue"]=matched_str              
                 except Exception as e:
-                  print("word_match",e)
+                  status=output_str+" --> Oops error found in processing"+str(e)
             string_match_column=adding_matched_values(whole_match,category_type,indx,org_value,subct,specid)
             output_df=pd.concat([output_df,string_match_column])
-      except Exception as e:   
-        print("for loop",e)
+      except Exception as e: 
+        status=output_str+" --> Oops error found in looping sfdc validate column"+str(e)
   except Exception as e:
-    print("value error",e)
+    status=output_str+" --> Oops error found in looping sfdc validate column"+str(e)
 
 try:
   if len(inscope_sfdc_info_df)>0:
     concurrent_function(cvalue)
     # inserting into sfdc indentified table
     if len(output_df)>0:
+      print("result")
+      print(output_df)
       output_df.drop_duplicates(inplace=True)
       output_df=output_df[(sfdc_column+adding_custom_column)]
       output_df=output_df.fillna("NULL")
@@ -266,22 +279,24 @@ try:
               item=item.replace("'","''")
             insert_data+="'"+item+"',"
           if len(insert_data)>0:
-            insert_data=insert_data[:-1]
-            insert_query="insert into [momentive].[sfdc_identified_case] values ("+insert_data+")"
+            insert_data=insert_data+"'NULL','NULL'"
+            print("insert",insert_data)
+            print("query",sfdc_insert_query)
+            insert_query=sfdc_insert_query+insert_data+")"
             cursor.execute(insert_query)
             sql_cursor.commit()
           status=output_str+" --> "+str(len(output_list))+" case detail(s) found"
         except Exception as e:
           status=output_str+" --> Oops error found while inserting"+str(e)
-          dbutils.notebook.exit(status)      
+#           dbutils.notebook.exit(status)      
     else:
       status=output_str+" --> 0 case detail found"
 
 except Exception as e:
   status=output_str+" --> Oops error found in processing"+str(e)
-  dbutils.notebook.exit(status)
+#   dbutils.notebook.exit(status)
   
-dbutils.notebook.exit(status)
+# dbutils.notebook.exit(status)
 
 
 # COMMAND ----------
