@@ -59,7 +59,7 @@ date = current_date[:10]
 logger = logging.getLogger('momentive')
 logger.setLevel(logging.DEBUG)
 #This log path should be configured in blob storage
-fh = logging.FileHandler("sales_force.log", 'w')
+fh = logging.FileHandler("momentive_sales_force.log", 'w')
 fh.setLevel(logging.DEBUG)
 # create formatter
 formatter = logging.Formatter(fmt = '%(asctime)s - %(levelname)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
