@@ -99,9 +99,13 @@ def adding_matched_values(temp_df,category_type,indx,value,subct,specid):
       matched_column="Ontology - "+str(value)
       matched_category=subct
       if subct=="NAMPROD":
-        real_spec_df=product_info_df[(product_info_df["Type"]=="NAMPROD") & (product_info_df["Text1"]==str(category_type).strip()) & (product_info_df["Text1"]=="REAL_SUB")]
+#         print("subdct",category_type)
+        category_type=str(category_type).strip()
+#         real_spec_df_1=product_info_df[(product_info_df["Type"]=="NAMPROD") & (product_info_df["Text1"]==category_type)]
+#         print("listvalues",real_spec_df_1.values.tolist())
+        real_spec_df=product_info_df[(product_info_df["Type"]=="NAMPROD") & (product_info_df["Text1"]==category_type) & (product_info_df["SUBCT"]=="REAL_SUB  ")]
       elif subct=="BDT":
-        real_spec_df=product_info_df[(product_info_df["Type"]=="MATNBR") & (product_info_df["Text3"]==str(category_type).strip())]
+        real_spec_df=product_info_df[(product_info_df["Type"]=="MATNBR") & (product_info_df["Text3"]==category_type)]
       if len(real_spec_df)>0:
         real_spec_df["Text2"]=real_spec_df["Text2"].str.strip()
         speclist=list(real_spec_df["Text2"].unique())
@@ -262,8 +266,8 @@ try:
     concurrent_function(cvalue)
     # inserting into sfdc indentified table
     if len(output_df)>0:
-      print("result")
-      print(output_df)
+#       print("result")
+#       print(output_df)
       output_df.drop_duplicates(inplace=True)
       output_df=output_df[(sfdc_column+adding_custom_column)]
       output_df=output_df.fillna("NULL")
@@ -280,23 +284,23 @@ try:
             insert_data+="'"+item+"',"
           if len(insert_data)>0:
             insert_data=insert_data+"'NULL','NULL'"
-            print("insert",insert_data)
-            print("query",sfdc_insert_query)
+#             print("insert",insert_data)
+#             print("query",sfdc_insert_query)
             insert_query=sfdc_insert_query+insert_data+")"
             cursor.execute(insert_query)
             sql_cursor.commit()
           status=output_str+" --> "+str(len(output_list))+" case detail(s) found"
         except Exception as e:
           status=output_str+" --> Oops error found while inserting"+str(e)
-#           dbutils.notebook.exit(status)      
+          dbutils.notebook.exit(status)      
     else:
       status=output_str+" --> 0 case detail found"
 
 except Exception as e:
   status=output_str+" --> Oops error found in processing"+str(e)
-#   dbutils.notebook.exit(status)
+  dbutils.notebook.exit(status)
   
-# dbutils.notebook.exit(status)
+dbutils.notebook.exit(status)
 
 
 # COMMAND ----------
