@@ -341,14 +341,15 @@ def main():
         argument_str=creating_argument_value(to_be_checked,starting_indx,file_indication)
         row_product=row_product+argument_str
         update_ontology(to_be_checked)
-
+    
+    
     #calling notebook for concurrent process 
     if len(row_product)>0:
       thread_length=int((len(row_product))/2)
       if thread_length>25:
         thread_length=30
 #       print("thread_length",thread_length)
-      pool = ThreadPool(4)
+      pool = ThreadPool(thread_length)
       logger.info("started parallel processing")
       pool.map(multiprocess_function,row_product)
       pool.close()
