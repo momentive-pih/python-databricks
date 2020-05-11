@@ -136,9 +136,9 @@ def main():
       cursor=sql_cursor.cursor()
       
       #Incope product
-      print(product_info_query)
+#       print(product_info_query)
       product_info_df = pd.read_sql(product_info_query, sql_cursor)
-      print("sql_product_count --> ",len(product_info_df)) 
+#       print("sql_product_count --> ",len(product_info_df)) 
       #writing product into file
       if not os.path.exists(sfdc_text_folder):
         path_exists(sfdc_text_folder)
@@ -149,25 +149,25 @@ def main():
       ##########################
       product_info_df = product_info_df[product_info_df["Type"].isin(selected_product_type)]
       product_info_df.drop_duplicates(inplace=True)
-      print("filtered product count --> ",len(product_info_df))   
+#       print("filtered product count --> ",len(product_info_df))   
       product_info_df=product_info_df[7529:7530]
-      print(product_info_df["Text3"])
-      print(product_info_df)
+#       print(product_info_df["Text3"])
+#       print(product_info_df)
       product_info_df=product_info_df.fillna("NULL")
       
       #ontology product
       ontology_product_df=pd.read_sql(ontology_info_query, sql_cursor)
-      print("sql_ontology_product_count --> ",len(ontology_product_df))
+#       print("sql_ontology_product_count --> ",len(ontology_product_df))
       ontology_product_df.drop_duplicates(inplace=True)
       ontology_product_df=ontology_product_df.fillna("NULL")
       inc_ontology_product_df=pd.read_sql(incremental_ontology_query, sql_cursor)
-      print("sql_incremental_ontology_product_count --> ",len(inc_ontology_product_df))
+#       print("sql_incremental_ontology_product_count --> ",len(inc_ontology_product_df))
       inc_ontology_product_df.drop_duplicates(inplace=True)
       inc_ontology_product_df=inc_ontology_product_df.fillna("NULL")
       
       #Identifed case table
       identified_sfdc_df = pd.read_sql(sfdc_identified_info_query, sql_cursor)
-      print("sql_identified sfdc record count --> ",len(identified_sfdc_df))
+#       print("sql_identified sfdc record count --> ",len(identified_sfdc_df))
       identified_sfdc_df=identified_sfdc_df.fillna("NULL")
       org_identified_sfdc_df=identified_sfdc_df
       
@@ -199,8 +199,8 @@ def main():
           case_last_modified_date = str(identified_sfdc_df[case_modified_column].max())[:-3]        
           email_last_modified_date = str(identified_sfdc_df[email_modified_column].max())[:-3]
           if case_last_modified_date !='' or email_last_modified_date!='':
-            print("case_last_modified_date",case_last_modified_date)
-            print("email_last_modified_date",email_last_modified_date)
+#             print("case_last_modified_date",case_last_modified_date)
+#             print("email_last_modified_date",email_last_modified_date)
             history_flag='false'          
             casedate=case_modified_column+" > convert(datetime,'"+case_last_modified_date+"')"
             where_condition=" where ("+casedate
@@ -225,7 +225,7 @@ def main():
     try:
       #loading SFDC data into dataframe
       inscope_sfdc_info_df = pd.read_sql(detect_sfdc_info_query, sql_cursor)
-      print("sql_sfdc_count --> ",len(inscope_sfdc_info_df)) 
+#       print("sql_sfdc_count --> ",len(inscope_sfdc_info_df)) 
       inscope_sfdc_info_df=inscope_sfdc_info_df.fillna("NULL")
       inscope_sfdc_info_df=inscope_sfdc_info_df.replace({"None":"NULL"})
     except Exception as e:
@@ -250,7 +250,7 @@ def main():
     if not os.path.exists(sfdc_text_folder):
         path_exists(sfdc_text_folder)
     processing_file_name = sfdc_text_folder+filename+".csv"
-    print("file - ",processing_file_name)
+#     print("file - ",processing_file_name)
     inscope_sfdc_info_df.to_csv(processing_file_name,index=False)
     inscope_sfdc_info_df=pd.read_csv(processing_file_name)
   
@@ -435,7 +435,7 @@ def main():
       except Exception as e:
         logger.error("Error in updating attachment info function",exc_info=True)
       
-    print("sfdc_columns",org_identified_sfdc_df.columns)
+#     print("sfdc_columns",org_identified_sfdc_df.columns)
     #updating accountname with output
     updating_accountinfo_with_sfdc(account_df,org_identified_sfdc_df)
     
