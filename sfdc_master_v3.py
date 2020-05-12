@@ -150,7 +150,7 @@ def main():
       product_info_df = product_info_df[product_info_df["Type"].isin(selected_product_type)]
       product_info_df.drop_duplicates(inplace=True)
       print("filtered product count --> ",len(product_info_df))   
-      product_info_df=product_info_df[7529:7530]
+#       product_info_df=product_info_df[7529:7530]
 #       print(product_info_df["Text3"])
 #       print(product_info_df)
       product_info_df=product_info_df.fillna("NULL")
