@@ -665,13 +665,19 @@ def text_Key_extract(file,filter_df,content,staging_raw_file_path,file_images):
     #value_extract
     #******************
     for  index_df in filter_df.index:
+        #print(filter_df['start_key'][index_df].strip())
         start_string_index = None
         end_string_index = None
+        if filter_df['start_key'][index_df].strip() != '\\n':
+          content1 = content.replace('\n','')
+        else:
+          content1 = content
         rgx = re.compile(r'({})'.format(filter_df['start_key'][index_df]),re.I)
+
         #******************************
         #checking index of start key
         #******************************
-        for match in re.finditer(rgx,content):
+        for match in re.finditer(rgx,content1):
             if match.group():
                 start_string_index = match.start()
                 break
@@ -687,24 +693,24 @@ def text_Key_extract(file,filter_df,content,staging_raw_file_path,file_images):
               #checking index of start key
               #******************************  
               
-              for match in re.finditer(rgx,content):
+              for match in re.finditer(rgx,content1):
                   if match.group():
                       start_string_index = match.end()
                       start_string_index_re = match.end()
                       #print('start_string_index',start_string_index)
                       rgx = re.compile(r'({})'.format(end_rex),re.I)
                      # print(content[start_string_index:])
-                      for match in re.finditer(rgx,content[start_string_index:]):
+                      for match in re.finditer(rgx,content1[start_string_index:]):
                         if match.group():
                             start_string_index = start_string_index_re + match.start()       
                             #print('start_string_index1',start_string_index)
-                            end_string_index = start_string_index_re + match.end()       
-                            #print('end_string_index',end_string_index)
-                            if 'date' not in filter_df['field'][index_df].lower().strip():
+                            end_string_index = start_string_index_re + match.end()                              
+                            #print('end_string_index',end_string_index)                            
+                            if 'date' not in filter_df['field'][index_df].lower().strip():                                                          
                               rgx_flag = 's'
                               break 
                             else:                                  
-                              date_extract = content[start_string_index:end_string_index].replace('\n',' ')
+                              date_extract = content1[start_string_index:end_string_index].replace('\n',' ')
                               #print(date_extract)                              
                               rgx_flag1=''
                               dt_match = None
@@ -725,8 +731,7 @@ def text_Key_extract(file,filter_df,content,staging_raw_file_path,file_images):
                       if rgx_flag =='s':
                           break
                                                   
-            elif filter_df['end_key'][index_df].lower().strip() == 'image':
-                
+            elif filter_df['end_key'][index_df].lower().strip() == 'image':                
                 target_temp=image_data_extract(staging_raw_file_path)
                 if not os.path.exists(file_images):
                   path_exists(file_images)
@@ -753,18 +758,27 @@ def text_Key_extract(file,filter_df,content,staging_raw_file_path,file_images):
   
             else:  
                 rgx = re.compile(r'({})'.format(filter_df['end_key'][index_df]),re.I)
-                for match in re.finditer(rgx,content[start_string_index:]):
+                for match in re.finditer(rgx,content1[start_string_index:]):
                   if match.group():
                       end_string_index = start_string_index + match.end()  
-                      break                                                                                                               
+                      junk = content1[start_string_index:end_string_index].replace('\n',' ')
+                      junk = junk.lower().replace(filter_df['end_key'][index_df].strip().lower(),'')
+                      junk = junk.lower().replace(filter_df['start_key'][index_df].strip().lower(),'')
+                      junk = junk.replace('.','')      
+                      junk = junk.lower().replace('page','').strip()
+                      if junk.isdigit():                        
+                        continue
+                      else:
+                        start_string_index = content1.rfind(filter_df['start_key'][index_df])
+                        break                                                                                                               
                       
         if  start_string_index is not None and end_string_index is not  None :#and end:
             if filter_df['start_key'][index_df].strip().lower() == '\\n':
-              start_string_index1 = content[:end_string_index].rfind('\n',)
-              start_string_index = content[:start_string_index1].rfind('\n',)
+              start_string_index1 = content1[:end_string_index].rfind('\n',)
+              start_string_index = content1[:start_string_index1].rfind('\n',)
 #             print(start_string_index) 
 #             print(end_string_index)
-            text_extract = content[start_string_index:end_string_index].replace('\n',' ')#.replace('\u2014'
+            text_extract = content1[start_string_index:end_string_index].replace('\n',' ')#.replace('\u2014'
         
             #********************************************************************************
             #replacing end_key text in extracted text if it is presnt in start key column
@@ -798,7 +812,7 @@ def text_Key_extract(file,filter_df,content,staging_raw_file_path,file_images):
     
     rgx = re.compile(r'({})'.format(rgx_pattern_date),re.I)
     date_result =None
-    for date_result in re.finditer(rgx,content):                
+    for date_result in re.finditer(rgx,content1):                
         dt_rgx = re.compile(r'({})'.format(date_pattern),re.I)  
         dt_match1 =None
         date_flag = ''
@@ -825,21 +839,21 @@ def text_Key_extract(file,filter_df,content,staging_raw_file_path,file_images):
     #********************
     
     rgx_pat = r'(\n?)re(:|\s)'    
-    sub_first = re.finditer(rgx_pat, content,re.I)    
+    sub_first = re.finditer(rgx_pat, content1,re.I)    
     sub_first_check_v1=-1
     for m_string in sub_first:
         sub_first_check_v1 = m_string.start(0)
         break        
-    sub_first_check_v2 = content.find('eu food contact statement')   
+    sub_first_check_v2 = content1.find('eu food contact statement')   
     if sub_first_check_v1 != -1:
-      sub_last = sub_first_check_v1 + content[sub_first_check_v1:].lower().find('dear')     
-    sub_first_check_v3 = content.rfind('\n',0,sub_last)   
+      sub_last = sub_first_check_v1 + content1[sub_first_check_v1:].lower().find('dear')     
+    sub_first_check_v3 = content1.rfind('\n',0,sub_last)   
     if sub_last != -1 and sub_first_check_v1 != -1 and sub_last > sub_first_check_v1 :
-        subject = content[sub_first_check_v1:sub_last].strip()
+        subject = content1[sub_first_check_v1:sub_last].strip()
     elif sub_last != -1 and sub_first_check_v2 != -1 and sub_last > sub_first_check_v2 :
-        subject = content[sub_first_check_v2:sub_last].strip()
+        subject = content1[sub_first_check_v2:sub_last].strip()
     elif sub_last != -1 and sub_first_check_v3 != -1 and sub_last > sub_first_check_v3 :
-        subject = content[sub_first_check_v3:sub_last].strip()
+        subject = content1[sub_first_check_v3:sub_last].strip()
     else:
         subject = file.split('/')[-1][:-4]
     block_json['subject'] = subject[:200].replace("'","''")
