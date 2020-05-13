@@ -1358,7 +1358,7 @@ def relavent_text_extract(file,staging_file,file_loc,content,product_inscope_df,
       data_extract['file_path']  = processed_path.replace("dbfs:","/dbfs") + staging_raw_file_path.rsplit('/',1)[1]
       data_extract['file_name']  = staging_raw_file_path.rsplit('/',1)[1]
       data_extract_copy=data_extract
-      data_extract = json.dumps(data_extract) 
+      data_extract = json.dumps(data_extract, ensure_ascii=False) 
       product_inscope_loop = []
       #*********************************************************
       #checking the PROD present in the exrtacted content 
@@ -2849,3 +2849,6 @@ if __name__ == '__main__':
     main()
   except Exception as e:
     logger.error('Somethng went wrong while calling main function',exc_info=True)
+
+# COMMAND ----------
+
