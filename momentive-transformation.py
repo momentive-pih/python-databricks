@@ -1,9 +1,8 @@
-# Databricks notebook source
 # -*- coding: utf-8 -*-
 """
 Created on Mon Feb  3 16:48:39 2020
 
-@author: 809917
+@author: momentive-pih
 """
 #**************************************************
 #importing required packages
@@ -35,12 +34,11 @@ import camelot
 import numpy as np
 import shutil
 import email
-from fpdf import FPDF
 from datetime import datetime
 from dateutil import parser as date_parser
 config = configparser.ConfigParser()
 #This configuration path should be configured in Blob storage
-config.read("/dbfs/mnt/momentive-configuration/config-file.ini")
+config.read("/dbfs/mnt/momentive-configuration/prod-config.ini")
 #Loging environment setup
 current = datetime.now()
 logger = logging.getLogger('momentive_unstructure_process')
@@ -378,10 +376,11 @@ def data_validation_to_relevant_non_relevant_split(data_delta, valid_path, prima
                  excel".format(valid_path),exc_info=True)
     
 def excel_full_delta_load(valid_path, relevant_data,sql_conn,cursor,sheet_name):
-  global data_delta
+  global data_delta,match_data
   data_delta = pd.DataFrame()
   try:
-    logger.info('Executing excel_full_delta_load function for {}'.format(valid_path))
+    logger.info('Executing excel_full_delta_load function for {}'.format(valid_path))         
+    relevant_data.to_csv(valid_path  + 'raw_valid_data.csv', index=None, header=True, encoding='iso-8859-1')
     if not os.path.exists(valid_path + sheet_name+ '/'):
       dbutils.fs.mkdirs((valid_path +sheet_name+ '/').replace("/dbfs","dbfs:")) 
       relevant_data.to_csv(valid_path +sheet_name+ '/' + 'valid_data.csv', index=None, header=True, encoding='iso-8859-1')
@@ -392,35 +391,35 @@ def excel_full_delta_load(valid_path, relevant_data,sql_conn,cursor,sheet_name):
       for m in mat:
         match_data = pd.read_csv(m, encoding='iso-8859-1')
         flag=0
-    match_data.replace({r'[^\x00-\x7F]+':''}, regex=True, inplace=True)
+    relevant_data=pd.read_csv(valid_path  + 'raw_valid_data.csv', encoding='iso-8859-1')
     data_delta = relevant_data.append(match_data)
-    data_delta.drop_duplicates(keep=False, inplace=True)
     data_delta.reset_index(drop=True, inplace=True)
+    data_delta.drop_duplicates(keep=False, inplace=True)  
+    data_delta.reset_index(drop=True, inplace=True)
+   ## print('data_delta',data_delta_checks.shape)
     data_delta1 = data_delta.append(match_data)
+    data_delta1.reset_index(drop=True, inplace=True)
     dup = data_delta1.duplicated(keep='first')
     data_delta2 = data_delta1[dup]
     data_delta2.reset_index(drop=True, inplace=True)
 
     if not data_delta.shape[0]==0 and not flag==1:
-      data_to_valid = pd.read_csv(valid_path + sheet_name+ '/' + 'valid_data.csv', encoding='iso-8859-1')
       data_to_m = data_delta.append(data_delta2)
+      data_to_m.reset_index(drop=True, inplace=True)
       data_to_m.drop_duplicates(keep=False, inplace=True)
       data_to_m.reset_index(drop=True, inplace=True)
-      data_to_v = pd.concat(list(data_to_valid.align(data_to_m)),ignore_index=True) 
-      data_to_v.reset_index(drop=True, inplace=True)
       dbutils.fs.rm((valid_path +sheet_name+ '/').replace("/dbfs",""),True)
-      data_to_v.to_csv(valid_path + sheet_name+ '/' + 'valid_data.csv', index=None, encoding='iso-8859-1')
+      if not os.path.exists(valid_path + sheet_name+ '/'):
+         dbutils.fs.mkdirs((valid_path +sheet_name+ '/').replace("/dbfs","dbfs:"))      
+      data_to_m.to_csv(valid_path + sheet_name+ '/' + 'valid_data.csv', index=None, encoding='iso-8859-1')
       data_delta = data_to_m.copy()
-   
-    if not data_delta2.shape[0]==0 and not flag==1:
-      data_to_v = data_to_valid.append(data_delta2)
-      data_to_v.drop_duplicates(keep=False, inplace=True)
-      data_to_v.reset_index(drop=True, inplace=True)
-      dbutils.fs.rm((valid_path +sheet_name+ '/').replace("/dbfs",""),True)
-      data_to_v.to_csv(valid_path + sheet_name+ '/' + 'valid_data.csv', index=None, encoding='iso-8859-1')
+      if not os.path.exists(valid_path + sheet_name +'_backup'+ '/'):
+        dbutils.fs.mkdirs((valid_path +sheet_name+'_backup'+ '/').replace("/dbfs","dbfs:"))  
+      data_delta2.to_csv(valid_path + sheet_name+'_backup'+ '/' + 'backup.csv',  index=None, encoding='iso-8859-1')
     return data_delta, valid_path
   except Exception as e:
     logger.error("Error in excel_full_delta_load function while loading data from {} ".format(valid_path),exc_info=True)
+    
     
 def reading_excel_data_from_source(valid_path, files, component_data, primary_column, comp,sql_conn,cursor,product_inscope_df,unstructure_processed_data_query,excel_date_found,category,sheet_name,matnbr_list):
   global relevant_data  
@@ -1511,6 +1510,7 @@ def pattern_match_validation(sql_conn,external_processed_files_df,cursor,unstruc
     silicone_elastomer_product_df =  external_source_data(sql_conn,silicone_elastomer_product_query)  
     silicone_elastomer_product_df=silicone_elastomer_product_df.rename(columns = {'eu_fda':'EU-FDA','us_fda':'US-FDA'})
     file_unique_list =[]
+    unique_file_check = []
     file_counting =0 
     #**********************************************
     #Iterating each files for pattern matching 
@@ -1526,10 +1526,11 @@ def pattern_match_validation(sql_conn,external_processed_files_df,cursor,unstruc
           #path_exists(analytics_invalid_path)
           valid_folder_list.append(analytics_invalid_path)        
         file=external_processed_files[index].replace("dbfs:","/dbfs") 
-        if file in extracted_file_list:
+        if file in extracted_file_list and file not in unique_file_check:
+          unique_file_check.append(file)
           file_counting+=1
-         # print(file)
-         # print('file_counting',file_counting)
+          print(file)
+          print('file_counting',file_counting)
           try:
             content = open(file.strip(), 'r', encoding = 'utf-8').read()
           except UnicodeDecodeError:
@@ -2773,18 +2774,7 @@ def external_source_data(sql_conn,query):
 def Sql_db_connection(): 
   try:
     logger.info('Connecting azure sql server')
-    server = config.get('sql_db', 'server')
-    database = config.get('sql_db', 'database')
-    username = config.get('sql_db', 'username')
-    password = config.get('sql_db', 'password')
-    DATABASE_CONFIG = {'server': server,'database': database,'username': username,'password': password}
-    driver= "{ODBC Driver 17 for SQL Server}"
-    connection_string = 'DRIVER=' + driver + \
-                      ';SERVER=' + DATABASE_CONFIG['server'] + \
-                      ';PORT=1433' + \
-                      ';DATABASE=' + DATABASE_CONFIG['database'] + \
-                      ';UID=' + DATABASE_CONFIG['username'] + \
-                      ';PWD=' + DATABASE_CONFIG['password'] 
+    connection_string = dbutils.secrets.get('kv-secret', 'sqltodbw')
     sql_conn = pyodbc.connect(connection_string)
     logger.info('Successfully connected with the Azure sql serevr ')
     if sql_conn is None:
@@ -2835,8 +2825,8 @@ def main():
                                           ['blob_all_txt_file_path'].values.tolist()      
       if loading_type != 'new_category':
         #pass
-         raw_df = external_folder_structure_process(external_folder_structure,external_source_file_formats,
-                  file_processing_info,update_file_processing_info,file_processing_blob_all_txt_list,sql_conn,cursor)   
+        raw_df = external_folder_structure_process(external_folder_structure,external_source_file_formats,
+                 file_processing_info,update_file_processing_info,file_processing_blob_all_txt_list,sql_conn,cursor)   
       else:
         raw_df= pd.DataFrame()
         #extracted_file
@@ -2863,6 +2853,3 @@ if __name__ == '__main__':
     main()
   except Exception as e:
     logger.error('Somethng went wrong while calling main function',exc_info=True)
-
-# COMMAND ----------
-
