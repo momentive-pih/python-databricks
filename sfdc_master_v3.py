@@ -103,7 +103,7 @@ sfdc_new_validate_column=config.get("mnt_sales_force","mnt_adding_merge_column")
 sfdc_new_validate_column=sfdc_new_validate_column.split(",")
 product_category=config.get('mnt_sales_force',"mnt_product_category")
 selected_product_type=product_category.split(",")
-
+processed_product_count=0
 def path_exists(file_path):
   try:
     logger.info("Executing path_exists function")
@@ -114,6 +114,7 @@ def path_exists(file_path):
 
 def main():
   try:
+    global processed_product_count
     mat_prod=''
     mat_bdt=''
     mat_desc=''
@@ -262,8 +263,11 @@ def main():
     
     def multiprocess_function(pass_value):
       try:
-        status=dbutils.notebook.run('/Users/admomanickamm@momentive.onmicrosoft.com/sfdc_parallel_v2',timeout_seconds=0,arguments = {"to_be_checked":pass_value})
+        global processed_product_count
+        status=dbutils.notebook.run('/Shared/sfdc_parallel_v2',timeout_seconds=0,arguments = {"to_be_checked":pass_value})
+        processed_product_count+=1
         print(status)
+        print(f'processed product count - {processed_product_count}')
         logger.info(status)
       except Exception as e:
         logger.error("Error in parallel processing",status)
@@ -312,57 +316,58 @@ def main():
             argument_str=creating_argument_value(to_be_checked,starting_indx,file_indication)
             row_product=row_product+argument_str
           except Exception as e:
-            logger.error("Error in sales force",exc_info=True)
+            logger.error("Error in sales force product part",exc_info=True)
       if len(ontology_product_df)==len(inc_ontology_product_df):
-        print(len(ontology_product_df))
-        ontology_df=ontology_product_df[check_ontology_column]
-        ontology_df.drop_duplicates(inplace=True)
-        to_be_checked=ontology_df.values.tolist()
-        starting_indx="ontology"
-        argument_str=creating_argument_value(to_be_checked,starting_indx,file_indication)
-        row_product=row_product+argument_str
-        update_ontology(to_be_checked)
+        try:
+          print(len(ontology_product_df))
+          ontology_df=ontology_product_df[check_ontology_column]
+          ontology_df.drop_duplicates(inplace=True)
+          to_be_checked=ontology_df.values.tolist()
+          starting_indx="ontology"
+          argument_str=creating_argument_value(to_be_checked,starting_indx,file_indication)
+          row_product=row_product+argument_str
+          update_ontology(to_be_checked)
+        except Exception as e:
+          logger.error("Error in sales force - ontlogy part",exc_info=True)
       elif len(inc_ontology_product_df)>0:
-        inc_ontology_df=inc_ontology_product_df[check_ontology_column]
-        inc_ontology_df.drop_duplicates(inplace=True)
-        to_be_checked=inc_ontology_df.values.tolist()
-        starting_indx="ontology"
-        argument_str=creating_argument_value(to_be_checked,starting_indx,file_indication)
-        row_product=row_product+argument_str
-        update_ontology(to_be_checked)
-        
+        try:
+          inc_ontology_df=inc_ontology_product_df[check_ontology_column]
+          inc_ontology_df.drop_duplicates(inplace=True)
+          to_be_checked=inc_ontology_df.values.tolist()
+          starting_indx="ontology"
+          argument_str=creating_argument_value(to_be_checked,starting_indx,file_indication)
+          row_product=row_product+argument_str
+          update_ontology(to_be_checked)
+        except Exception as e:
+          logger.error("Error in sales force - ontlogy part",exc_info=True) 
+
     elif len(inc_ontology_product_df) != len(inc_ontology_product_df):
       if os.path.exists(sfdc_text_folder+history_filename+".csv"):
-        file_indication="history"
-        inc_ontology_df=inc_ontology_product_df[check_ontology_column]
-        inc_ontology_df.drop_duplicates(inplace=True)
-        to_be_checked=inc_ontology_df.values.tolist()
-        starting_indx="ontology"
-        argument_str=creating_argument_value(to_be_checked,starting_indx,file_indication)
-        row_product=row_product+argument_str
-        update_ontology(to_be_checked)
-    
+        try:
+          file_indication="history"
+          inc_ontology_df=inc_ontology_product_df[check_ontology_column]
+          inc_ontology_df.drop_duplicates(inplace=True)
+          to_be_checked=inc_ontology_df.values.tolist()
+          starting_indx="ontology"
+          argument_str=creating_argument_value(to_be_checked,starting_indx,file_indication)
+          row_product=row_product+argument_str
+          update_ontology(to_be_checked)
+        except Exception as e:
+          logger.error("Error in sales force - ontlogy part",exc_info=True) 
     
     #calling notebook for concurrent process 
-    if len(row_product)>0:
-      thread_length=int((len(row_product))/2)
-      if thread_length>25:
-        thread_length=30
-#       print("thread_length",thread_length)
-      pool = ThreadPool(thread_length)
-      logger.info("started parallel processing")
-      pool.map(multiprocess_function,row_product)
-      pool.close()
-      
-    #update_old_history_file
-    if history_flag=="false" and os.path.exists(processing_file_name) and len(inscope_sfdc_info_df)>0:
-      try:
-        history_df=pd.read_csv(sfdc_text_folder+history_filename+".csv",encoding="ISO-8859-1")
-        history_df = pd.concat([history_df,inscope_sfdc_info_df])
-        history_df.to_csv(sfdc_text_folder+history_filename+".csv",index=False)
-        logger.info("Successfully updated sfdc historical file at"+sfdc_text_folder+history_filename+".csv")
-      except Exception as e:
-        logger.error("Error in updating sfdc historical file",exc_info=True)
+    try:
+      if len(row_product)>0:
+        thread_length=int((len(row_product))/2)
+        if thread_length>25:
+          thread_length=30
+  #       print("thread_length",thread_length)
+        pool = ThreadPool(thread_length)
+        logger.info("started parallel processing")
+        pool.map(multiprocess_function,row_product)
+        pool.close()
+    except Exception as e:
+        logger.error("Error in callig parallel function",exc_info=True) 
       
     #updating accountname function   
     def updating_accountinfo_with_sfdc(account_df,sfdc_df):
@@ -446,6 +451,17 @@ def main():
     #updating email attachment name with output
     updating_email_attachment_info_with_sfdc(email_attachment_df,updated_identified_sfdc_df)
     
+    #update_old_history_file
+    if history_flag=="false" and len(inscope_sfdc_info_df)>0:
+      try:
+        if os.path.exists(processing_file_name):
+          history_df=pd.read_csv(sfdc_text_folder+history_filename+".csv",encoding="ISO-8859-1")
+          history_df = pd.concat([history_df,inscope_sfdc_info_df])
+          history_df.to_csv(sfdc_text_folder+history_filename+".csv",index=False)
+          logger.info("Successfully updated sfdc historical file at"+sfdc_text_folder+history_filename+".csv")
+      except Exception as e:
+        logger.error("Error in updating sfdc historical file",exc_info=True)
+        
   except Exception as e:
     logger.error("Error in sales force",exc_info=True)
 
