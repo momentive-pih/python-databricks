@@ -38,7 +38,7 @@ from datetime import datetime
 from dateutil import parser as date_parser
 config = configparser.ConfigParser()
 #This configuration path should be configured in Blob storage
-config.read("/dbfs/mnt/momentive-configuration/prod-config.ini")
+config.read("/dbfs/mnt/momentive-configuration/config-file.ini")
 #Loging environment setup
 current = datetime.now()
 logger = logging.getLogger('momentive_unstructure_process')
@@ -1699,6 +1699,8 @@ def pattern_match_validation(sql_conn,external_processed_files_df,cursor,unstruc
                       valid_path = external_excel_files[index].strip()
                       logger.info('{} its a Excel extraction type so moving this file to excel_extract2_key_value_pair function \
                                     '.format(valid_path))
+                      if pattern_cat_match.strip() == 'tox_study_silanes' or  pattern_cat_match.strip() == 'tox_study_selant':
+                        content = file.rsplit('/',1)[1] 
                       excel_date_found = excel_date(content,file)
                       excel_extract2_key_value_pair(valid_path,sql_conn,cursor,pattern_cat_match.strip(),product_inscope_df, 
                                            unstructure_processed_data_query,excel_date_found,matnbr_list)
