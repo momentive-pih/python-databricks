@@ -1529,8 +1529,8 @@ def pattern_match_validation(sql_conn,external_processed_files_df,cursor,unstruc
         if file in extracted_file_list and file not in unique_file_check:
           unique_file_check.append(file)
           file_counting+=1
-          print(file)
-          print('file_counting',file_counting)
+          #print(file)
+          #print('file_counting',file_counting)
           try:
             content = open(file.strip(), 'r', encoding = 'utf-8').read()
           except UnicodeDecodeError:
