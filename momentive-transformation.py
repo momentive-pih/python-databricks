@@ -2840,8 +2840,8 @@ def main():
       unstructure_processed_data_query = config.get('mount_path', 'unstructure_processed_data')
       pattern_match_validation(sql_conn,external_processed_files_df,cursor,unstruct_category_key_df
                             ,raw_df,unstructure_processed_data_query)
-      
-      Specification(sql_conn,cursor)                      
+      if len(extracted_file_list) !=0:
+        Specification(sql_conn,cursor)                      
   except Exception as e:
     logger.error('Something went wrong in main function', exc_info=True)
     
