@@ -264,7 +264,7 @@ def main():
     def multiprocess_function(pass_value):
       try:
         global processed_product_count
-        status=dbutils.notebook.run('/Shared/sfdc_parallel_v2',timeout_seconds=0,arguments = {"to_be_checked":pass_value})
+        status=dbutils.notebook.run('/Users/admomanickamm@momentive.onmicrosoft.com/sfdc_parallel_v2',timeout_seconds=0,arguments = {"to_be_checked":pass_value})
         processed_product_count+=1
         print(status)
         print(f'processed product count - {processed_product_count}')
