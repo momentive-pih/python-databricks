@@ -102,20 +102,20 @@ def Specification(sql_conn,cursor):
           real_spec = prod_df[(prod_df['Type']=='MATNBR') & (prod_df['Text1']==mat_df['Text1'][i].strip())]
           real_spec_list = list(real_spec['Text2'].unique())
           rea_spec_join = ';'.join(real_spec_list)
-          query = "update {} set spec_id = '{}'  where product = '{}'  and product_type = 'MATNBR'\
+          query = "update {} set spec_id = N'{}'  where product = N'{}'  and product_type = 'MATNBR'\
                 ".format(config.get('mount_path','unstructure_table_name'),rea_spec_join,mat_df['Text1'][i].strip())
           update_operation(query,sql_conn,cursor)
           real_spec = prod_df[(prod_df['Type']=='MATNBR') & (prod_df['Text3']==mat_df['Text3'][i].strip())]
           real_spec_list = list(real_spec['Text2'].unique())
           rea_spec_join = ';'.join(real_spec_list)
-          query = "update {} set spec_id = '{}'  where product = '{}'  and product_type = 'BDT'\
+          query = "update {} set spec_id = N'{}'  where product = N'{}'  and product_type = 'BDT'\
                 ".format(config.get('mount_path','unstructure_table_name'),rea_spec_join,mat_df['Text3'][i].strip())               
           update_operation(query,sql_conn,cursor)
         elif mat_df['Type'][i].strip()=='NAMPROD' and mat_df['SUBCT'][i].strip()=='REAL_SUB' :
           real_spec = prod_df[(prod_df['Type']=='NAMPROD') & (prod_df['Text1']==mat_df['Text1'][i].strip())]
           real_spec_list = list(real_spec['Text2'].unique())
           rea_spec_join = ';'.join(real_spec_list)
-          query = "update {} set spec_id = '{}'  where product = '{}'  and product_type = 'NAMPROD'\
+          query = "update {} set spec_id = N'{}'  where product = N'{}'  and product_type = 'NAMPROD'\
                 ".format(config.get('mount_path','unstructure_table_name'),rea_spec_join,mat_df['Text1'][i].strip()) 
           update_operation(query,sql_conn,cursor)
         elif mat_df['Type'][i].strip()=='NAMPROD' and mat_df['SUBCT'][i].strip()=='PURE_SUB' :  
@@ -123,7 +123,7 @@ def Specification(sql_conn,cursor):
           real_spec = relation_df[relation_df['Text1']==pure_spec]
           real_spec_list = list(real_spec['Text2'].unique())
           rea_spec_join = ';'.join(real_spec_list)
-          query = "update {} set spec_id = '{}'  where product = '{}'  and product_type = 'NAMPROD'\
+          query = "update {} set spec_id = N'{}'  where product = N'{}'  and product_type = 'NAMPROD'\
                 ".format(config.get('mount_path','unstructure_table_name'),rea_spec_join,mat_df['Text1'][i].strip()) 
           update_operation(query,sql_conn,cursor)
         elif mat_df['Type'][i].strip()=='NUMCAS' and mat_df['SUBCT'][i].strip()=='PURE_SUB':
@@ -131,7 +131,7 @@ def Specification(sql_conn,cursor):
           real_spec = relation_df[relation_df['Text1']==pure_spec]
           real_spec_list = list(real_spec['Text2'].unique())
           rea_spec_join = ';'.join(real_spec_list)
-          query = "update {} set spec_id = '{}'  where product = '{}'  and product_type = 'NUMCAS'"\
+          query = "update {} set spec_id = N'{}'  where product = N'{}'  and product_type = 'NUMCAS'"\
                 .format(config.get('mount_path','unstructure_table_name'),rea_spec_join,mat_df['Text1'][i].strip())
           update_operation(query,sql_conn,cursor)
 
@@ -1515,8 +1515,7 @@ def pattern_match_validation(sql_conn,external_processed_files_df,cursor,unstruc
     #**********************************************
     #Iterating each files for pattern matching 
     #**********************************************
-    for index in range(len(external_processed_files)):
-    #for index in range(1000):  
+    for index in range(len(external_processed_files)):    
       try:
         image_falg =''
         analytics_valid_path = external_processed_files[index].rsplit('all-text',1)[0] + 'valid-files/'
@@ -1526,11 +1525,11 @@ def pattern_match_validation(sql_conn,external_processed_files_df,cursor,unstruc
           #path_exists(analytics_invalid_path)
           valid_folder_list.append(analytics_invalid_path)        
         file=external_processed_files[index].replace("dbfs:","/dbfs") 
-        if file in extracted_file_list and file not in unique_file_check:
+        if file in extracted_file_list and file not in unique_file_check :
           unique_file_check.append(file)
           file_counting+=1
           #print(file)
-          #print('file_counting',file_counting)
+          print('file_counting',file_counting)
           try:
             content = open(file.strip(), 'r', encoding = 'utf-8').read()
           except UnicodeDecodeError:
@@ -1887,8 +1886,8 @@ def csv_text_extract(staging_path,csv_list,source_type,all_files,excel_files,fil
             #update_operation
             #*******************************************************************************************************************
           if file_path.replace('//','/').strip() not in file_processing_blob_all_txt_list:
-            file_processing_info_query = file_processing_info + " values ('{}', '{}', '{}', '{}', '{}', '{}', '{}', '{}', {}, \
-            {},'{}')".format(source_type, file_name,'Excel','.csv', staging_path.replace('//','/'), 
+            file_processing_info_query = file_processing_info + " values (N'{}', N'{}', N'{}', N'{}', N'{}', N'{}', N'{}', N'{}', {}, \
+            {},N'{}')".format(source_type, file_name,'Excel','.csv', staging_path.replace('//','/'), 
             file_path.replace('//','/').strip().replace("'","''"),1,0,'GETDATE()','GETDATE()',excel_files + file_name+'/')                
             
           else:
@@ -1901,7 +1900,7 @@ def csv_text_extract(staging_path,csv_list,source_type,all_files,excel_files,fil
           #Creation of insert query for the extracted invalid file path to the file_processing_info table and executed using
           #update_operation
           #********************************************************************************************************************
-          file_processing_info_query = file_processing_info + " values ('{}', '{}', '{}', '{}', '{}', '{}', '{}', '{}', {},{},'{}')"\
+          file_processing_info_query = file_processing_info + " values (N'{}', N'{}', N'{}', N'{}', N'{}', N'{}', N'{}', N'{}', {},{},N'{}')"\
           .format(source_type, file_name, 'Excel','.csv', staging_path.replace('//','/'), file_path.replace('//','/').strip().replace("'","''"), 
                   0,0,'null','null','null')
           update_operation(file_processing_info_query,sql_conn,cursor)
@@ -1964,8 +1963,8 @@ def xlsx_text_extract(staging_path,xlsx_list,source_type,all_files,excel_files,f
           #update_operation
           #*************************************************************************************************************** 
           if file_path.replace('//','/').strip() not in file_processing_blob_all_txt_list:
-            file_processing_info_query = file_processing_info + " values ('{}', '{}', '{}', '{}', '{}', '{}', '{}', '{}', {}, \
-            {},'{}')".format(source_type, file_name,'Excel','.csv', staging_path.replace('//','/'), 
+            file_processing_info_query = file_processing_info + " values (N'{}', N'{}', N'{}', N'{}', N'{}', N'{}', N'{}', N'{}', {}, \
+            {},N'{}')".format(source_type, file_name,'Excel','.csv', staging_path.replace('//','/'), 
             file_path.replace('//','/').strip().replace("'","''"),1,0,'GETDATE()','GETDATE()',excel_files + file_name+'/')                 
             
           else:
@@ -1978,8 +1977,8 @@ def xlsx_text_extract(staging_path,xlsx_list,source_type,all_files,excel_files,f
             #Creation of insert query for the extracted invalid file path to the file_processing_info table using
             #update_operation
             #***************************************************************************************************************
-            file_processing_info_query = file_processing_info + " values ('{}', '{}', '{}', '{}', '{}', '{}', '{}', '{}', {}, \
-            {},'{}')".format(source_type, file_name, 'Excel','.csv', staging_path.replace('//','/'), 
+            file_processing_info_query = file_processing_info + " values (N'{}', N'{}', N'{}', N'{}', N'{}', N'{}', N'{}', N'{}', {}, \
+            {},N'{}')".format(source_type, file_name, 'Excel','.csv', staging_path.replace('//','/'), 
             file_path.replace('//','/').strip().replace("'","''"), 0,0,'null','null','null')
             update_operation(file_processing_info_query,sql_conn,cursor)
             logger.error('{}  is not extracted'.format(file_path.replace('//','/')))
@@ -2032,8 +2031,8 @@ def eml_attachment(staging_path,eml_list,staging_path_pdf,raw_files,raw_format,a
             with open(eml_data, 'wb') as f:
               f.write(email_text.get_payload(decode=True))
             if eml_data.replace('//','/').strip() not in file_processing_blob_all_txt_list:
-              file_processing_info_query = file_processing_info + " values ('{}', '{}', '{}', '{}', '{}', '{}', '{}', '{}', {}, \
-              {},'{}')".format(source_type, email_name, 
+              file_processing_info_query = file_processing_info + " values (N'{}', N'{}', N'{}', N'{}', N'{}', N'{}', N'{}', N'{}', {}, \
+              {},N'{}')".format(source_type, email_name, 
               'email','.eml', staging_path.replace('//','/'), eml_data.replace('//','/').strip(), 1,0,'GETDATE()','GETDATE()','null')
             else:
               file_processing_info_query = update_file_processing_info.format(1,'GETDATE()',eml_data.replace('//','/').strip())
@@ -2044,8 +2043,8 @@ def eml_attachment(staging_path,eml_list,staging_path_pdf,raw_files,raw_format,a
         #Creation of insert query for the extracted invalid file path to the file_processing_info table and executed using
         #update_operation
         #***************************************************************************************************************
-          file_processing_info_query = file_processing_info + " values ('{}', '{}', '{}', '{}', '{}', '{}', '{}', '{}',{}, {} \
-          ,'{}')".format(source_type, email_name, 
+          file_processing_info_query = file_processing_info + " values (N'{}', N'{}', N'{}', N'{}', N'{}', N'{}', N'{}', N'{}',{}, {} \
+          ,N'{}')".format(source_type, email_name, 
           'email','.eml', staging_path.replace('//','/'), eml_data.replace('//','/').strip(), 0,0,'null','null','null')
           update_operation(file_processing_info_query,sql_conn,cursor)
           logger.error('Error in email_text while processing {}'.format(eml_data))
@@ -2148,8 +2147,8 @@ def extract_doc_text(staging_path,doc_file_list,source_type,all_files,file_proce
         #update_operation
         #***************************************************************************************************************
         if file_path.replace('//','/').strip() not in file_processing_blob_all_txt_list:
-          file_processing_info_query = file_processing_info + " values ('{}', '{}', '{}', '{}', '{}', '{}', '{}', '{}', {}, \
-          {},'{}')".format(source_type, file_name, 
+          file_processing_info_query = file_processing_info + " values (N'{}', N'{}', N'{}', N'{}', N'{}', N'{}', N'{}', N'{}', {}, \
+          {},N'{}')".format(source_type, file_name, 
         'Document','.docx', staging_path.replace('//','/'), file_path.replace('//','/').strip().replace("'","''"), 1,0,'GETDATE()','GETDATE()','null')
         else:
           file_processing_info_query = update_file_processing_info.format(1,'GETDATE()',file_path.replace('//','/').strip().replace("'","''"))
@@ -2160,8 +2159,8 @@ def extract_doc_text(staging_path,doc_file_list,source_type,all_files,file_proce
         #Creation of insert query for the extracted invalid file path to the file_processing_info table and executed using
         #update_operation
         #***************************************************************************************************************
-        file_processing_info_query = file_processing_info + " values ('{}', '{}', '{}', '{}', '{}', '{}', '{}', '{}',{}, {} \
-        ,'{}')".format(source_type, file_name, 
+        file_processing_info_query = file_processing_info + " values (N'{}', N'{}', N'{}', N'{}', N'{}', N'{}', N'{}', N'{}',{}, {} \
+        ,N'{}')".format(source_type, file_name, 
         'Document','.docx', staging_path.replace('//','/'), file_path.replace('//','/').strip().replace("'","''"), 0,0,'null','null','null')
         update_operation(file_processing_info_query,sql_conn,cursor)
         logger.error('Error in extract_doc_text while processing {}'.format(files))
@@ -2195,8 +2194,8 @@ def extract_pptx_text(staging_path,doc_file_list,source_type,all_files,file_proc
         #update_operation
         #***************************************************************************************************************
         if file_path.replace('//','/').strip() not in file_processing_blob_all_txt_list:
-          file_processing_info_query = file_processing_info + " values ('{}', '{}', '{}', '{}', '{}', '{}', '{}', '{}', {}, \
-          {},'{}')".format(source_type, file_name, 
+          file_processing_info_query = file_processing_info + " values (N'{}', N'{}', N'{}', N'{}', N'{}', N'{}', N'{}', N'{}', {}, \
+          {},N'{}')".format(source_type, file_name, 
         'ppt','.pptx', staging_path.replace('//','/'), file_path.replace('//','/').strip().replace("'","''"), 1,0,'GETDATE()','GETDATE()','null')
         else:
           file_processing_info_query = update_file_processing_info.format(1,'GETDATE()',file_path.replace('//','/').strip().replace("'","''"))
@@ -2207,8 +2206,8 @@ def extract_pptx_text(staging_path,doc_file_list,source_type,all_files,file_proc
         #Creation of insert query for the extracted invalid file path to the file_processing_info table and executed using
         #update_operation
         #***************************************************************************************************************
-        file_processing_info_query = file_processing_info + " values ('{}', '{}', '{}', '{}', '{}', '{}', '{}', '{}',{}, {} \
-        ,'{}')".format(source_type, file_name, 
+        file_processing_info_query = file_processing_info + " values (N'{}', N'{}', N'{}', N'{}', N'{}', N'{}', N'{}', N'{}',{}, {} \
+        ,N'{}')".format(source_type, file_name, 
         'ppt','.pptx', staging_path.replace('//','/'), file_path.replace('//','/').strip().replace("'","''"), 0,0,'null','null','null')
         update_operation(file_processing_info_query,sql_conn,cursor)
         logger.error('Error in extract_ppt_text while processing {}'.format(files))
@@ -2393,8 +2392,8 @@ def native_pdf_extract_text(native_path,all_files,staging_path,source_type,file_
               dbutils.fs.put(text_name,text_extract,True)
               file_path = text_name.replace("dbfs:","/dbfs")
               if file_path.replace('//','/').strip() not in file_processing_blob_all_txt_list:
-                file_processing_info_query = file_processing_info + " values ('{}', '{}', '{}', '{}', '{}', '{}', '{}', '{}',{}, {} \
-                ,'{}')".format(source_type, file_name,      
+                file_processing_info_query = file_processing_info + " values (N'{}', N'{}', N'{}', N'{}', N'{}', N'{}', N'{}', N'{}',{}, {} \
+                ,N'{}')".format(source_type, file_name,      
               'PDF','.pdf', staging_path.replace('//','/'), file_path.replace('//','/').strip().replace("'","''"), 1,0,'GETDATE()','GETDATE()', 'null')
               else:
                 file_processing_info_query = update_file_processing_info.format(1,'GETDATE()',file_path.replace('//','/').strip().replace("'","''"))
@@ -2402,8 +2401,8 @@ def native_pdf_extract_text(native_path,all_files,staging_path,source_type,file_
               logger.info("Successfully extracted {} and updated the file_processing_info table".format(file_name))
             else:
               file_path = text_name.replace("dbfs:","/dbfs")
-              file_processing_info_query = file_processing_info + " values ('{}', '{}', '{}', '{}', '{}', '{}', '{}', '{}',{}, {} \
-              ,'{}')".format(source_type, file_name,     
+              file_processing_info_query = file_processing_info + " values (N'{}', N'{}', N'{}', N'{}', N'{}', N'{}', N'{}', N'{}',{}, {} \
+              ,N'{}')".format(source_type, file_name,     
               'PDF','.pdf', staging_path.replace('//','/'), file_path.replace('//','/').strip().replace("'","''"), 0,0,'null','null','null')
               update_operation(file_processing_info_query,sql_conn,cursor)
               logger.error("Error in native_pdf_extract_text function : iteraion",exc_info=True)
@@ -2415,8 +2414,8 @@ def native_pdf_extract_text(native_path,all_files,staging_path,source_type,file_
           #update_operation
           #***************************************************************************************************************
             file_path = text_name.replace("dbfs:","/dbfs")
-            file_processing_info_query = file_processing_info + " values ('{}', '{}', '{}', '{}', '{}', '{}', '{}', '{}',{}, {} \
-            ,'{}')".format(source_type, file_name,     
+            file_processing_info_query = file_processing_info + " values (N'{}', N'{}', N'{}', N'{}', N'{}', N'{}', N'{}', N'{}',{}, {} \
+            ,N'{}')".format(source_type, file_name,     
             'PDF','.pdf', staging_path.replace('//','/'), file_path.replace('//','/').strip().replace("'","''"), 0,0,'null','null','null')
             update_operation(file_processing_info_query,sql_conn,cursor)
             logger.error("Error in native_pdf_extract_text function : iteraion",exc_info=True)
@@ -2477,8 +2476,8 @@ def scanned_pdf_extract_text(scanned_path,all_files,staging_path,source_type,fil
               dbutils.fs.put(text_name,text_extract,True)
               file_path = text_name.replace("dbfs:","/dbfs")
               if file_path.replace('//','/').strip() not in file_processing_blob_all_txt_list:
-                file_processing_info_query = file_processing_info + " values ('{}', '{}', '{}', '{}', '{}', '{}', '{}', '{}' ,{}, \
-                {},'{}')".format(source_type, file_name,     
+                file_processing_info_query = file_processing_info + " values (N'{}', N'{}', N'{}', N'{}', N'{}', N'{}', N'{}', N'{}' ,{}, \
+                {},N'{}')".format(source_type, file_name,     
               'PDF','.pdf',staging_path.replace('//','/'), file_path.replace('//','/').strip().replace("'","''"), 1,0,'GETDATE()','GETDATE()','null')
               else:
                 file_processing_info_query = update_file_processing_info.format(1,'GETDATE()',file_path.replace('//','/').strip().replace("'","''")) 
@@ -2486,8 +2485,8 @@ def scanned_pdf_extract_text(scanned_path,all_files,staging_path,source_type,fil
               logger.info("Successfully extracted {} and updated the file_processing_info table".format(file_name))
             else:
                 file_path = text_name.replace("dbfs:","/dbfs")
-                file_processing_info_query = file_processing_info + " values ('{}', '{}', '{}', '{}', '{}', '{}', '{}', '{}',{}, {} \
-                ,'{}')".format(source_type, file_name,     
+                file_processing_info_query = file_processing_info + " values (N'{}', N'{}', N'{}', N'{}', N'{}', N'{}', N'{}', N'{}',{}, {} \
+                ,N'{}')".format(source_type, file_name,     
                 'PDF','.pdf', staging_path.replace('//','/'), file_path.replace('//','/').strip().replace("'","''"), 0,0,'null','null','null')
                 update_operation(file_processing_info_query,sql_conn,cursor)
                 logger.error("Error in scanned_pdf_extract_text function text extract is empty: iteration",exc_info=True)
@@ -2499,8 +2498,8 @@ def scanned_pdf_extract_text(scanned_path,all_files,staging_path,source_type,fil
           #update_operation
           #************************************************************************************************************************
             file_path = text_name.replace("dbfs:","/dbfs")
-            file_processing_info_query = file_processing_info + " values ('{}', '{}', '{}', '{}', '{}', '{}', '{}', '{}',{}, {} \
-            ,'{}')".format(source_type, file_name,     
+            file_processing_info_query = file_processing_info + " values (N'{}', N'{}', N'{}', N'{}', N'{}', N'{}', N'{}', N'{}',{}, {} \
+            ,N'{}')".format(source_type, file_name,     
             'PDF','.pdf', staging_path.replace('//','/'), file_path.replace('//','/').strip().replace("'","''"), 0,0,'null','null','null')
             update_operation(file_processing_info_query,sql_conn,cursor)
             logger.error("Error in scanned_pdf_extract_text function : iteration",exc_info=True)
@@ -2826,12 +2825,10 @@ def main():
       file_processing_blob_all_txt_list = external_source_data(sql_conn,file_processing_blob_all_txt_info)\
                                           ['blob_all_txt_file_path'].values.tolist()      
       if loading_type != 'new_category':
-        #pass
         raw_df = external_folder_structure_process(external_folder_structure,external_source_file_formats,
                  file_processing_info,update_file_processing_info,file_processing_blob_all_txt_list,sql_conn,cursor)   
       else:
         raw_df= pd.DataFrame()
-        #extracted_file
         extracted_file_list.extend(file_processing_blob_all_txt_list)
       external_file_process_query = config.get('mount_path', 'external_file_process')
       external_processed_files_df = external_source_data(sql_conn,external_file_process_query)
