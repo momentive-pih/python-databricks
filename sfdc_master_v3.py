@@ -61,12 +61,16 @@ logger.setLevel(logging.DEBUG)
 #This log path should be configured in blob storage
 fh = logging.FileHandler("momentive_sales_force.log", 'w')
 fh.setLevel(logging.DEBUG)
+ch = logging.FileHandler("momentive_sales_force_error.log", 'w')
+ch.setLevel(logging.ERROR)
 # create formatter
 formatter = logging.Formatter(fmt = '%(asctime)s - %(levelname)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
 # add formatter to fh
 fh.setFormatter(formatter)
+ch.setFormatter(formatter)
 # add fh to logger
 logger.addHandler(fh)
+logger.addHandler(ch)
 
 config = configparser.ConfigParser()
 #This configuration path should be configured in Blob storage
@@ -137,17 +141,17 @@ def main():
       cursor=sql_cursor.cursor()
       
       #Incope product
-#       print(product_info_query)
       product_info_df = pd.read_sql(product_info_query, sql_cursor)
-#       print("sql_product_count --> ",len(product_info_df)) 
+
       #writing product into file
       if not os.path.exists(sfdc_text_folder):
         path_exists(sfdc_text_folder)
+        
       product_info_df["Type"]=product_info_df["Type"].str.strip()
       product_info_df["Text1"]=product_info_df["Text1"].str.strip()
       product_path=sfdc_text_folder+product_filename+".csv"
       product_info_df.to_csv(product_path,index=False)
-      ##########################
+      
       product_info_df = product_info_df[product_info_df["Type"].isin(selected_product_type)]
       product_info_df.drop_duplicates(inplace=True)
       print("filtered product count --> ",len(product_info_df))   
@@ -167,6 +171,7 @@ def main():
       inc_ontology_product_df=inc_ontology_product_df.fillna("NULL")
       
       #Identifed case table
+      print("sfdc_idenfied_query",sfdc_identified_info_query)
       identified_sfdc_df = pd.read_sql(sfdc_identified_info_query, sql_cursor)
       print("sql_identified sfdc record count --> ",len(identified_sfdc_df))
       identified_sfdc_df=identified_sfdc_df.fillna("NULL")
@@ -175,11 +180,12 @@ def main():
       #Account table
       account_df = pd.read_sql(account_details_query, sql_cursor)
       account_df=account_df.fillna("NULL")
+      print("len of account info",len(account_df))
       
       #email attchment table
       email_attachment_df = pd.read_sql(email_attachment_query, sql_cursor)
       email_attachment_df=email_attachment_df.fillna("NULL")
-      
+      print("len of email attchment info",len(email_attachment_df))
       
     except Exception as e:
       logger.error("Error in accessing db : ",exc_info=True)
@@ -197,18 +203,20 @@ def main():
           where_condition=''
           identified_sfdc_df[case_modified_column]=pd.to_datetime(identified_sfdc_df[case_modified_column],errors='coerce')
           identified_sfdc_df[email_modified_column]=pd.to_datetime(identified_sfdc_df[email_modified_column],errors='coerce')
-          case_last_modified_date = str(identified_sfdc_df[case_modified_column].max())[:-3]        
-          email_last_modified_date = str(identified_sfdc_df[email_modified_column].max())[:-3]
+#           case_last_modified_date = str(identified_sfdc_df[case_modified_column].max())[:-3]        
+#           email_last_modified_date = str(identified_sfdc_df[email_modified_column].max())[:-3]
+          case_last_modified_date = str(identified_sfdc_df[case_modified_column].max())       
+          email_last_modified_date = str(identified_sfdc_df[email_modified_column].max())
           if case_last_modified_date !='' or email_last_modified_date!='':
             print("case_last_modified_date",case_last_modified_date)
             print("email_last_modified_date",email_last_modified_date)
             history_flag='false'          
-            casedate=case_modified_column+" > convert(datetime,'"+case_last_modified_date+"')"
-            where_condition=" where ("+casedate
+            casedate="CAST("+case_modified_column+" AS datetime) > '"+case_last_modified_date+"'"
+            where_condition=" where "+casedate
             if email_last_modified_date!='':
-              emaildate=email_modified_column+" > convert(datetime,'"+email_last_modified_date+"')"
-              where_condition=where_condition+" or "+emaildate
-            where_condition=where_condition+")"
+              emaildate="CAST("+email_modified_column+" AS datetime) > '"+email_last_modified_date+"'"
+              where_condition=where_condition+" and "+emaildate
+#             where_condition=where_condition+")"
             #query execution
             detect_sfdc_info_query = historical_query+where_condition
           else:
@@ -221,12 +229,12 @@ def main():
     else:
       filename=history_filename
       detect_sfdc_info_query = historical_query
-#     print(detect_sfdc_info_query)
+    print(detect_sfdc_info_query)
     
     try:
       #loading SFDC data into dataframe
       inscope_sfdc_info_df = pd.read_sql(detect_sfdc_info_query, sql_cursor)
-#       print("sql_sfdc_count --> ",len(inscope_sfdc_info_df)) 
+      print("sql_sfdc_count --> ",len(inscope_sfdc_info_df)) 
       inscope_sfdc_info_df=inscope_sfdc_info_df.fillna("NULL")
       inscope_sfdc_info_df=inscope_sfdc_info_df.replace({"None":"NULL"})
     except Exception as e:
@@ -264,7 +272,7 @@ def main():
     def multiprocess_function(pass_value):
       try:
         global processed_product_count
-        status=dbutils.notebook.run('/Users/admomanickamm@momentive.onmicrosoft.com/sfdc_parallel_v2',timeout_seconds=0,arguments = {"to_be_checked":pass_value})
+        status=dbutils.notebook.run('/Shared/sfdc_parallel_v2',timeout_seconds=0,arguments = {"to_be_checked":pass_value})
         processed_product_count+=1
         print(status)
         print(f'processed product count - {processed_product_count}')
@@ -341,7 +349,7 @@ def main():
         except Exception as e:
           logger.error("Error in sales force - ontlogy part",exc_info=True) 
 
-    elif len(inc_ontology_product_df) != len(inc_ontology_product_df):
+    elif (len(ontology_product_df) != len(inc_ontology_product_df)) and len(inc_ontology_product_df)>0:
       if os.path.exists(sfdc_text_folder+history_filename+".csv"):
         try:
           file_indication="history"
@@ -375,7 +383,7 @@ def main():
         edited_account_df=pd.DataFrame()
         print("len updating_accountinfo_with_sfdc",len(sfdc_df))
         parentid=list(account_df["parentid"].unique())
-        account_with_null=sfdc_df[sfdc_df["Accountname"]=="NULL"]
+        account_with_null=sfdc_df[(sfdc_df["Accountname"]=="NULL") | (sfdc_df["Accountname"]=="Not Found")]
         print("len without null updating_accountinfo_with_sfdc",len(account_with_null))
         account_list=list(account_with_null["AccountId"].unique()) 
         logger.info("updating account information in sfdc")
@@ -387,20 +395,23 @@ def main():
               name_str="||".join(name_list)
               if "'" in name_str:
                   name_str=name_str.replace("'","''")
+              print("acountname",name_str)
               update_query="update "+table_connector+"."+sfdc_identified_case_table+" set Accountname='"+name_str+"' where AccountId='"+item+"'"
     #           print(update_query)
+              print("AccountId",item)
               cursor.execute(update_query)
               sql_cursor.commit()
+              #break
           except Exception as e:
             logger.error("Error in updating account name",exc_info=True)
           #updating NA value
-        try:
-          update_query="update "+table_connector+"."+sfdc_identified_case_table+" set Accountname='Not Found' where Accountname='NULL' or Accountname is NULL"
-          cursor.execute(update_query)
-          sql_cursor.commit()
-        except Exception as e:
-          logger.error("Error in updating account name as Not found where NULL",exc_info=True)
-#           break
+#         try:
+#           update_query="update "+table_connector+"."+sfdc_identified_case_table+" set Accountname='Not Found' where Accountname='NULL' or Accountname is NULL"
+#           cursor.execute(update_query)
+#           sql_cursor.commit()
+#         except Exception as e:
+#           logger.error("Error in updating account name as Not found where NULL",exc_info=True)
+
       except Exception as e:
         logger.error("Error in updating accountinfo function",exc_info=True)
     
@@ -410,13 +421,13 @@ def main():
         print("len updating_email_attachment",len(sfdc_df))
         edited_account_df=pd.DataFrame()
         parentid=list(attachment_df["ParentId"].unique()) 
-        email_with_null=sfdc_df[sfdc_df["EmailAttachment"]=="NULL"]
+        email_with_null=sfdc_df[(sfdc_df["EmailAttachment"]=="NULL") | (sfdc_df["EmailAttachment"]=="Not Found")]
         print("le without null updating_email_attachment_info_with_sfdc",len(email_with_null))
         emailid_list=list(email_with_null["EmailId"].unique())
         for item in parentid:  
           try:
             if item in emailid_list:
-#               print("attc",item)
+              print("emailid",item)
               edited_account_df=attachment_df[attachment_df["ParentId"]==item]
               edited_account_df["fullpath"]=edited_account_df["FilePath"]+edited_account_df["Name"]
               name_list=list(edited_account_df["fullpath"].unique())
@@ -424,18 +435,19 @@ def main():
               if "'" in name_str:
                   name_str=name_str.replace("'","''")
               update_query="update "+table_connector+"."+sfdc_identified_case_table+" set EmailAttachment='"+name_str+"' where EmailId='"+item+"'"
+             # print("email_atta",name_str)
 #               print(update_query)            
               cursor.execute(update_query)
               sql_cursor.commit()
-#               break           
+          #    break           
           except Exception as e:
             logger.error("Error in updating attachment name",exc_info=True)
-        try:
-          update_query="update "+table_connector+"."+sfdc_identified_case_table+" set EmailAttachment='Not Found' where EmailAttachment='NULL' or EmailAttachment is NULL"
-          cursor.execute(update_query)
-          sql_cursor.commit()
-        except Exception as e:
-          logger.error("Error in updating attachment name as Not founf where NULL",exc_info=True) 
+#         try:
+#           update_query="update "+table_connector+"."+sfdc_identified_case_table+" set EmailAttachment='Not Found' where EmailAttachment='NULL' or EmailAttachment is NULL"
+#           cursor.execute(update_query)
+#           sql_cursor.commit()
+#         except Exception as e:
+#           logger.error("Error in updating attachment name as Not founf where NULL",exc_info=True) 
 #           break
       except Exception as e:
         logger.error("Error in updating attachment info function",exc_info=True)
