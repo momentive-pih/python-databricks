@@ -137,7 +137,7 @@ current_date = str(datetime.datetime.now())
 date = current_date[:10]
 config = configparser.ConfigParser()
 #This configuration path should be configured in Blob storage
-config.read("/dbfs/mnt/momentive-configuration/config-file.ini")
+config.read("/dbfs/mnt/momentive-configuration/config-sfdc-file.ini")
 sfdc_text_folder = config.get('mnt_sales_force','mnt_sales_force_split_files')
 history_filename = config.get('mnt_sales_force','mnt_sales_force_historical_filename')
 incremental_filename = config.get('mnt_sales_force','mnt_sales_force_incremental_filename')
