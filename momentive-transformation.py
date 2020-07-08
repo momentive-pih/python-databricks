@@ -62,7 +62,6 @@ folder_list =[]
 extracted_file_list = []
 native_scanned_folder_list =[]
 
-
 #****************************************************
 #function name: path_exists
 #Objective: To empty or create the folders
@@ -76,6 +75,324 @@ def path_exists(file_path):
   except Exception as e:
     logger.error("Error in path_exists function while creation of : ".format(file_path),exc_info=True)
 
+def namprod_incrimental(sql_conn,cursor) :
+  try:
+      query = config.get('mount_path','prod_info_query').format('NAM','PROD') 
+      namprod_inc_df = external_source_data(sql_conn,query)
+      namprod_inc_df_list  = list(namprod_inc_df['IDTXT'])
+      query = config.get('mount_path','prod_del_query').format('NAM','PROD')
+      namprod_del = external_source_data(sql_conn,query)
+      if not namprod_del.empty:
+        namprod_del=list(namprod_del[~namprod_del['IDTXT'].isin(namprod_inc_df_list)]['IDTXT'])
+        for nam_value in namprod_del:
+          query =  config.get('mount_path','update_unstruct_del_query').format('NAMPROD',nam_value)
+          update_operation(query,sql_conn,cursor)
+          query = config.get('mount_path','update_ontology_by_prod_query').format('NAMPROD',nam_value)
+          update_operation(query,sql_conn,cursor)
+          query = config.get('mount_path','update_changeaudit_by_prod_query').format('NAMPROD',nam_value)
+          update_operation(query,sql_conn,cursor)
+      if not os.path.exists(config.get('mount_path','product_information_storage_path')+'namprod.csv'):
+        namprod_inc_df['IDTXT']=namprod_inc_df['IDTXT'].astype('str')
+        namprod_inc_df.to_csv(config.get('mount_path','product_information_storage_path')+'namprod.csv',index = None)
+      namprod_his_df = pd.read_csv(config.get('mount_path','product_information_storage_path')+'namprod.csv',dtype ='str')
+      #namprod_inc_df['IDTXT'] = namprod_inc_df['IDTXT'].apply(lambda x: x.lstrip('0'))
+      namprod_his_df.reset_index(drop=True, inplace=True)
+      nam_prod_fusion = namprod_inc_df.append(namprod_his_df)
+      nam_prod_fusion.reset_index(drop=True, inplace=True)
+      nam_prod_fusion.dropna(how='all', inplace=True)
+      nam_prod_fusion.reset_index(drop=True, inplace=True)
+      nam_prod_fusion.drop_duplicates(keep=False, inplace=True)  
+      nam_prod_fusion.reset_index(drop=True, inplace=True)  
+      nam_prod_fusion=list(nam_prod_fusion[~nam_prod_fusion['IDTXT'].isin(list(namprod_his_df['IDTXT']))]['IDTXT'])
+#       namprod_inc_df['IDTXT'][7]= 'kamal'      
+#       namprod_inc_df.drop([15,16],inplace=True)
+#       namprod_inc_df.reset_index(drop=True, inplace=True)
+      namprod_inc_df['IDTXT']=namprod_inc_df['IDTXT'].astype('str')
+      namprod_inc_df.to_csv(config.get('mount_path','product_information_storage_path')+'namprod.csv',index = None)
+      return namprod_inc_df_list,nam_prod_fusion    
+  except:
+    logger.error('Something went wrong in the namprod_incrimental function', exc_info=True)
+
+    
+def numcas_incrimental(sql_conn,cursor):
+  try:
+      query = config.get('mount_path','prod_info_query').format('NUM','CAS')
+      numcas_inc_df = external_source_data(sql_conn,query)
+      numcas_inc_df_list  = list(numcas_inc_df['IDTXT'])
+      query = config.get('mount_path','prod_del_query').format('NUM','CAS')
+      numcas_del = external_source_data(sql_conn,query)
+      if not numcas_del.empty:
+        numcas_del=list(numcas_del[~numcas_del['IDTXT'].isin(numcas_inc_df_list)]['IDTXT'])
+        for nam_value in numcas_del:
+          query =  config.get('mount_path','update_unstruct_del_query').format('NUMCAS',nam_value)
+          update_operation(query,sql_conn,cursor)
+          query =  config.get('mount_path','update_ontology_by_prod_query').format('NUMCAS',nam_value)
+          update_operation(query,sql_conn,cursor)
+          query =  config.get('mount_path','update_changeaudit_by_prod_query').format('NUMCAS',nam_value)
+          update_operation(query,sql_conn,cursor)
+      if not os.path.exists(config.get('mount_path','product_information_storage_path')+'numcas.csv'):
+        numcas_inc_df['IDTXT']=numcas_inc_df['IDTXT'].astype('str')
+        numcas_inc_df.to_csv(config.get('mount_path','product_information_storage_path')+'numcas.csv',index = None)
+      numcas_his_df = pd.read_csv(config.get('mount_path','product_information_storage_path')+'numcas.csv',dtype ='str')
+      #numcas_inc_df['IDTXT'] = numcas_inc_df['IDTXT'].apply(lambda x: x.lstrip('0'))
+      numcas_his_df.reset_index(drop=True, inplace=True)
+      num_cas_fusion = numcas_inc_df.append(numcas_his_df)
+      num_cas_fusion.reset_index(drop=True, inplace=True)
+      num_cas_fusion.dropna(how='all', inplace=True)
+      num_cas_fusion.reset_index(drop=True, inplace=True)
+      num_cas_fusion.drop_duplicates(keep=False, inplace=True)  
+      num_cas_fusion.reset_index(drop=True, inplace=True)  
+      num_cas_fusion=list(num_cas_fusion[~num_cas_fusion['IDTXT'].isin(list(numcas_his_df['IDTXT']))]['IDTXT'])
+      numcas_inc_df['IDTXT']=numcas_inc_df['IDTXT'].astype('str')
+      numcas_inc_df.to_csv(config.get('mount_path','product_information_storage_path')+'numcas.csv',index = None)
+      return numcas_inc_df_list,num_cas_fusion    
+  except:
+    logger.error('Something went wrong in the numcas_incrimental function', exc_info=True)
+
+def namcas_incrimental(sql_conn,cursor):
+  try:
+      query = config.get('mount_path','prod_info_query').format('NAM','CAS')
+      namcas_inc_df = external_source_data(sql_conn,query)
+      namcas_inc_df_list  = list(namcas_inc_df['IDTXT'])
+      query = config.get('mount_path','prod_del_query').format('NAM','CAS')
+      namcas_del = external_source_data(sql_conn,query)
+      if not namcas_del.empty:
+        namcas_del=list(namcas_del[~namcas_del['IDTXT'].isin(namcas_inc_df_list)]['IDTXT'])
+        for nam_value in namcas_del:
+          query =  config.get('mount_path','update_unstruct_del_query').format('NAMCAS',nam_value)
+          update_operation(query,sql_conn,cursor)
+          query =  config.get('mount_path','update_ontology_by_prod_query').format('NAMCAS',nam_value)
+          update_operation(query,sql_conn,cursor)
+          query =  config.get('mount_path','update_changeaudit_by_prod_query').format('NAMCAS',nam_value)
+          update_operation(query,sql_conn,cursor)
+      if not os.path.exists(config.get('mount_path','product_information_storage_path')+'namcas.csv'):
+        namcas_inc_df['IDTXT']=namcas_inc_df['IDTXT'].astype('str')
+        namcas_inc_df.to_csv(config.get('mount_path','product_information_storage_path')+'namcas.csv',index = None)
+      namcas_his_df = pd.read_csv(config.get('mount_path','product_information_storage_path')+'namcas.csv',dtype ='str')
+      #namcas_inc_df['IDTXT'] = namcas_inc_df['IDTXT'].apply(lambda x: x.lstrip('0'))
+      namcas_his_df.reset_index(drop=True, inplace=True)
+      nam_cas_fusion = namcas_inc_df.append(namcas_his_df)
+      nam_cas_fusion.reset_index(drop=True, inplace=True)
+      nam_cas_fusion.dropna(how='all', inplace=True)
+      nam_cas_fusion.reset_index(drop=True, inplace=True)
+      nam_cas_fusion.drop_duplicates(keep=False, inplace=True)  
+      nam_cas_fusion.reset_index(drop=True, inplace=True)  
+      nam_cas_fusion=list(nam_cas_fusion[~nam_cas_fusion['IDTXT'].isin(list(namcas_his_df['IDTXT']))]['IDTXT'])
+      namcas_inc_df['IDTXT']=namcas_inc_df['IDTXT'].astype('str')
+      namcas_inc_df.to_csv(config.get('mount_path','product_information_storage_path')+'namcas.csv',index = None)
+      return namcas_inc_df_list,nam_cas_fusion    
+  except:
+    logger.error('Something went wrong in the namcas_incrimental function', exc_info=True)   
+
+def namsyn_incrimental(sql_conn,cursor):
+  try:
+      query = config.get('mount_path','prod_info_query').format('NAM','SYN')
+      namsyn_inc_df = external_source_data(sql_conn,query)
+      namsyn_inc_df_list  = list(namsyn_inc_df['IDTXT'])
+      query = config.get('mount_path','prod_del_query').format('NAM','SYN')
+      namsyn_del = external_source_data(sql_conn,query)
+      if not namsyn_del.empty:
+        namsyn_del=list(namsyn_del[~namsyn_del['IDTXT'].isin(namsyn_inc_df_list)]['IDTXT'])
+        for nam_value in namsyn_del:
+          query =  config.get('mount_path','update_unstruct_del_query').format('NAMSYN',nam_value)
+          update_operation(query,sql_conn,cursor)
+          query =  config.get('mount_path','update_ontology_by_prod_query').format('NAMSYN',nam_value)
+          update_operation(query,sql_conn,cursor)
+          query =  config.get('mount_path','update_changeaudit_by_prod_query').format('NAMSYN',nam_value)
+          update_operation(query,sql_conn,cursor)
+      if not os.path.exists(config.get('mount_path','product_information_storage_path')+'namsyn.csv'):
+        namsyn_inc_df['IDTXT']=namsyn_inc_df['IDTXT'].astype('str')
+        namsyn_inc_df.to_csv(config.get('mount_path','product_information_storage_path')+'namsyn.csv',index = None)
+      namsyn_his_df = pd.read_csv(config.get('mount_path','product_information_storage_path')+'namsyn.csv',dtype ='str')
+      #namsyn_inc_df['IDTXT'] = namsyn_inc_df['IDTXT'].apply(lambda x: x.lstrip('0'))
+      namsyn_his_df.reset_index(drop=True, inplace=True)
+      nam_syn_fusion = namsyn_inc_df.append(namsyn_his_df)
+      nam_syn_fusion.reset_index(drop=True, inplace=True)
+      nam_syn_fusion.dropna(how='all', inplace=True)
+      nam_syn_fusion.reset_index(drop=True, inplace=True)
+      nam_syn_fusion.drop_duplicates(keep=False, inplace=True)  
+      nam_syn_fusion.reset_index(drop=True, inplace=True)  
+      nam_syn_fusion=list(nam_syn_fusion[~nam_syn_fusion['IDTXT'].isin(list(namsyn_his_df['IDTXT']))]['IDTXT'])
+      namsyn_inc_df['IDTXT']=namsyn_inc_df['IDTXT'].astype('str')
+      namsyn_inc_df.to_csv(config.get('mount_path','product_information_storage_path')+'namsyn.csv',index = None)
+      return namsyn_inc_df_list,nam_syn_fusion    
+  except:
+    logger.error('Something went wrong in the namsyn_incrimental function', exc_info=True)
+    
+
+def Bdt_incrimental(sql_conn,cursor):
+  try:
+      query = config.get('mount_path','bdt_info_query')
+      bdt_inc_df = external_source_data(sql_conn,query)
+      bdt_inc_df_list  = list(bdt_inc_df['BDTXT'])
+      query = config.get('mount_path','bdt_del_query')
+      bdt_del = external_source_data(sql_conn,query)
+      if not bdt_del.empty:
+        bdt_del=list(bdt_del[~bdt_del['BDTXT'].isin(bdt_inc_df_list)]['BDTXT'])
+        for bdt_value in bdt_del:
+          query =  config.get('mount_path','update_unstruct_del_query').format('BDT',bdt_value)
+          update_operation(query,sql_conn,cursor)
+          query =  config.get('mount_path','update_ontology_by_prod_query').format('BDT',bdt_value)
+          update_operation(query,sql_conn,cursor)
+          query =  config.get('mount_path','update_changeaudit_by_prod_query').format('BDT',bdt_value)
+          update_operation(query,sql_conn,cursor)
+      if not os.path.exists(config.get('mount_path','product_information_storage_path')+'bdt.csv'):
+        bdt_inc_df['BDTXT']=bdt_inc_df['BDTXT'].astype('str')
+        bdt_inc_df.to_csv(config.get('mount_path','product_information_storage_path')+'bdt.csv',index = None)
+      bdt_his_df = pd.read_csv(config.get('mount_path','product_information_storage_path')+'bdt.csv',dtype ='str')
+      #bdt_inc_df['IDTXT'] = bdt_inc_df['IDTXT'].apply(lambda x: x.lstrip('0'))
+      bdt_his_df.reset_index(drop=True, inplace=True)
+      bdt_fusion = bdt_inc_df.append(bdt_his_df)
+      bdt_fusion.reset_index(drop=True, inplace=True)
+      bdt_fusion.dropna(how='all', inplace=True)
+      bdt_fusion.reset_index(drop=True, inplace=True)
+      bdt_fusion.drop_duplicates(keep=False, inplace=True)  
+      bdt_fusion.reset_index(drop=True, inplace=True)  
+      bdt_fusion=list(bdt_fusion[~bdt_fusion['BDTXT'].isin(list(bdt_his_df['BDTXT']))]['BDTXT'])
+      bdt_inc_df['BDTXT']=bdt_inc_df['BDTXT'].astype('str')
+      bdt_inc_df.to_csv(config.get('mount_path','product_information_storage_path')+'bdt.csv',index = None)
+      return bdt_inc_df_list,bdt_fusion    
+  except:
+    logger.error('Something went wrong in the Bdt_incrimental function', exc_info=True)
+    
+    
+def mat_incrimental(sql_conn,cursor):
+  try:
+      query = config.get('mount_path','mat_info_query')
+      mat_inc_df = external_source_data(sql_conn,query)
+     # mat_inc_df.to_csv('/dbfs/mnt/momentive-configuration/mat.csv',index = None)
+      mat_inc_df_list  = list(mat_inc_df['MATNR'])
+      query = config.get('mount_path','mat_del_query')
+      mat_del = external_source_data(sql_conn,query)
+      if not mat_del.empty:
+        mat_del=list(mat_del[~mat_del['MATNR'].isin(mat_inc_df_list)]['MATNR'])
+        for mat_value in mat_del:
+          query =  config.get('mount_path','update_unstruct_del_query').format('MATNBR',mat_value)
+          update_operation(query,sql_conn,cursor)
+          query =  config.get('mount_path','update_ontology_by_prod_query').format('MATNBR',mat_value)
+          update_operation(query,sql_conn,cursor)
+          query =  config.get('mount_path','update_changeaudit_by_prod_query').format('MATNBR',mat_value)
+          update_operation(query,sql_conn,cursor)
+      if not os.path.exists(config.get('mount_path','product_information_storage_path')+'mat.csv'):
+        mat_inc_df['MATNR']=mat_inc_df['MATNR'].astype('str')
+        mat_inc_df.to_csv(config.get('mount_path','product_information_storage_path')+'mat.csv',index = None)
+      mat_his_df = pd.read_csv(config.get('mount_path','product_information_storage_path')+'mat.csv',dtype ='str')
+      #mat_inc_df['IDTXT'] = mat_inc_df['IDTXT'].apply(lambda x: x.lstrip('0'))
+      mat_his_df.reset_index(drop=True, inplace=True)
+      mat_fusion = mat_inc_df.append(mat_his_df)
+      mat_fusion.reset_index(drop=True, inplace=True)
+      mat_fusion.dropna(how='all', inplace=True)
+      mat_fusion.reset_index(drop=True, inplace=True)
+      mat_fusion.drop_duplicates(keep=False, inplace=True)  
+      mat_fusion.reset_index(drop=True, inplace=True)  
+      mat_fusion=list(mat_fusion[~mat_fusion['MATNR'].isin(list(mat_his_df['MATNR']))]['MATNR'])
+      mat_inc_df['MATNR']=mat_inc_df['MATNR'].astype('str')
+      mat_inc_df.to_csv(config.get('mount_path','product_information_storage_path')+'mat.csv',index = None)
+      return mat_inc_df_list,mat_fusion    
+  except:
+    logger.error('Something went wrong in the mat_incrimental function', exc_info=True)
+
+def product_check(sql_conn,cursor):
+  try:
+      prod_inc_df = pd.DataFrame()
+      prod_his_df = pd.DataFrame()
+      sap_prod_type = []
+      sap_prod_text = []
+      sap_his_prod_type = []
+      sap_his_prod_text = []
+      
+      nam_prod_his_list,nam_prod_inc_list=namprod_incrimental(sql_conn,cursor)   
+      sap_his_prod_type = sap_his_prod_type +  ['NAMPROD'] * len(nam_prod_his_list)
+      sap_his_prod_text = sap_his_prod_text +  nam_prod_his_list
+      sap_prod_type = sap_prod_type +  ['NAMPROD'] * len(nam_prod_inc_list)
+      sap_prod_text = sap_prod_text +  nam_prod_inc_list
+      
+      num_cas_his_list,num_cas_inc_list=numcas_incrimental(sql_conn,cursor)
+      sap_his_prod_type = sap_his_prod_type +  ['NUMCAS'] * len(num_cas_his_list)
+      sap_his_prod_text = sap_his_prod_text +  num_cas_his_list
+      sap_prod_type = sap_prod_type +  ['NUMCAS'] * len(num_cas_inc_list) 
+      sap_prod_text = sap_prod_text + num_cas_inc_list
+      
+      #nam_cas_his_list,nam_cas_inc_list=namcas_incrimental(sql_conn,cursor)
+      #sap_his_prod_type = sap_his_prod_type +  ['NAMCAS'] * len(nam_cas_his_list)
+      #sap_his_prod_text = sap_his_prod_text +  nam_cas_his_list
+      #sap_prod_type = sap_prod_type +  ['NAMCAS'] * len(nam_cas_inc_list)
+      #sap_prod_text = sap_prod_text + nam_cas_inc_list
+      
+      #nam_syn_his_list,nam_syn_inc_list=namsyn_incrimental(sql_conn,cursor)
+      #sap_his_prod_type = sap_his_prod_type +  ['NAMSYN'] * len(nam_syn_his_list)
+      #sap_his_prod_text = sap_his_prod_text +  nam_syn_his_list
+      #sap_prod_type = sap_prod_type +  ['NAMSYN'] * len(nam_syn_inc_list) 
+      #sap_prod_text = sap_prod_text + nam_syn_inc_list
+      
+      bdt_his_list,bdt_inc_list=Bdt_incrimental(sql_conn,cursor)
+      sap_his_prod_type = sap_his_prod_type +  ['BDT'] * len(bdt_his_list)
+      sap_his_prod_text = sap_his_prod_text +  bdt_his_list
+      sap_prod_type = sap_prod_type +  ['BDT'] * len(bdt_inc_list) 
+      sap_prod_text = sap_prod_text + bdt_inc_list
+      
+      mat_his_list,mat_inc_list=mat_incrimental(sql_conn,cursor)
+      sap_his_prod_type = sap_his_prod_type +  ['MATNBR'] * len(mat_his_list)
+      sap_his_prod_text = sap_his_prod_text +  mat_his_list
+      sap_prod_type = sap_prod_type +  ['MATNBR'] * len(mat_inc_list) 
+      sap_prod_text = sap_prod_text + mat_inc_list
+      
+      prod_inc_df['Type'] = sap_prod_type
+      prod_inc_df['Text'] = sap_prod_text
+      prod_his_df['Type'] = sap_his_prod_type
+      prod_his_df['Text'] = sap_his_prod_text
+      return prod_his_df,prod_inc_df
+  except Exception as e:
+    logger.error("Error in product_check function  ",exc_info=True)
+    
+def ontology_check(sql_conn,cursor):
+  try:    
+    ont_inc_query = config.get('mount_path','ont_inc_query')
+    ont_inc_df = external_source_data(sql_conn,ont_inc_query)
+    ont_inc_df.sort_values(by=['id'], inplace=True, ascending=False)  
+    ont_inc_df.reset_index(drop=True, inplace=True)   
+    non_process_id =[]    
+    unique_row_id =[]
+    unique_id=[]
+    for index in ont_inc_df.index:
+      if ont_inc_df['row_id'][index] not in unique_row_id:
+        unique_row_id.append(ont_inc_df['row_id'][index])
+        unique_id.append(ont_inc_df['id'][index])
+        #print(ont_inc_df['row_id'][index])
+        ont_inc_query = config.get('mount_path','ont_his_query').format(ont_inc_df['row_id'][index])      
+        ont_inc_df_check = external_source_data(sql_conn,ont_inc_query)
+        if not ont_inc_df_check.empty:
+          #ont_inc_df_check["updated_date"] = pd.to_datetime(ont_inc_df_check["updated_date"],errors='coerce')
+          ont_inc_df_check.sort_values(by=['id'], inplace=True, ascending=False)  
+          ont_inc_df_check.reset_index(drop=True, inplace=True)
+          if ont_inc_df['product'][index].strip() != ont_inc_df_check['product'][0].strip() and ont_inc_df['synonyms/extract'][index].strip() != \
+                                                      ont_inc_df_check['synonyms/extract'][0].strip():            
+            ont_update_query = config.get('mount_path','ont_update_query').format(ont_inc_df_check['synonyms/extract']
+                                                      [0].strip(),ont_inc_df_check['product'] [0].strip(),ont_inc_df_check['product_type'][0].strip())
+            update_operation(ont_update_query,sql_conn,cursor)
+          elif ont_inc_df['product'][index].strip() == ont_inc_df_check['product'][0].strip() and ont_inc_df['synonyms/extract'][index].strip() != \
+                                                      ont_inc_df_check['synonyms/extract'][0].strip():
+            ont_update_query = config.get('mount_path','ont_update_query').format(ont_inc_df_check['synonyms/extract']
+                                                      [0].strip(),ont_inc_df_check['product'][0].strip(),ont_inc_df_check['product_type'][0].strip())
+            update_operation(ont_update_query,sql_conn,cursor)
+          elif ont_inc_df['product'][index].strip() != ont_inc_df_check['product'][0].strip() and ont_inc_df['synonyms/extract'][index].strip() == \
+                                                      ont_inc_df_check['synonyms/extract'][0].strip():
+            ont_update_query = config.get('mount_path','ont_up_prod_query').format(ont_inc_df['product']
+                                                      [index].strip(),ont_inc_df_check['synonyms/extract'][0].strip(),ont_inc_df_check['product']                                                               [0].strip(),ont_inc_df_check['product_type'][0].strip())
+            update_operation(ont_update_query,sql_conn,cursor)
+            non_process_id.append(ont_inc_df['row_id'][index])
+          elif ont_inc_df['product'][index].strip() == ont_inc_df_check['product'][0].strip() and ont_inc_df['synonyms/extract'][index].strip() == \
+                                                      ont_inc_df_check['synonyms/extract'][0].strip():
+  
+            non_process_id.append(ont_inc_df['row_id'][index])
+    ont_inc_df=ont_inc_df[~ont_inc_df['row_id'].isin(non_process_id)]
+    ont_inc_df=ont_inc_df[ont_inc_df['id'].isin(unique_id)]
+    query = config.get('mount_path','ontology_query') 
+    ont_his_df = external_source_data(sql_conn,query)
+    return ont_his_df,ont_inc_df
+  except:
+        logger.error("Error in ontology_check function ",exc_info=True)
+      
 def Specification(sql_conn,cursor): 
   query = config.get('mount_path','ontology_value_query')
   un_ont_df = external_source_data(sql_conn,query)['product'].values.tolist()
@@ -101,38 +418,48 @@ def Specification(sql_conn,cursor):
         if mat_df['Type'][i].strip()=='MATNBR':
           real_spec = prod_df[(prod_df['Type']=='MATNBR') & (prod_df['Text1']==mat_df['Text1'][i].strip())]
           real_spec_list = list(real_spec['Text2'].unique())
+          real_spec_list = [spec.replace("'","''") for spec in real_spec_list]
+          text1_str=mat_df['Text1'][i].strip().replace("'","''")
           rea_spec_join = ';'.join(real_spec_list)
           query = "update {} set spec_id = N'{}'  where product = N'{}'  and product_type = 'MATNBR'\
-                ".format(config.get('mount_path','unstructure_table_name'),rea_spec_join,mat_df['Text1'][i].strip())
+                ".format(config.get('mount_path','unstructure_table_name'),rea_spec_join,text1_str)
           update_operation(query,sql_conn,cursor)
           real_spec = prod_df[(prod_df['Type']=='MATNBR') & (prod_df['Text3']==mat_df['Text3'][i].strip())]
           real_spec_list = list(real_spec['Text2'].unique())
+          real_spec_list = [spec.replace("'","''") for spec in real_spec_list]
+          text3_str=mat_df['Text3'][i].strip().replace("'","''")
           rea_spec_join = ';'.join(real_spec_list)
           query = "update {} set spec_id = N'{}'  where product = N'{}'  and product_type = 'BDT'\
-                ".format(config.get('mount_path','unstructure_table_name'),rea_spec_join,mat_df['Text3'][i].strip())               
+                ".format(config.get('mount_path','unstructure_table_name'),rea_spec_join,text3_str)               
           update_operation(query,sql_conn,cursor)
         elif mat_df['Type'][i].strip()=='NAMPROD' and mat_df['SUBCT'][i].strip()=='REAL_SUB' :
           real_spec = prod_df[(prod_df['Type']=='NAMPROD') & (prod_df['Text1']==mat_df['Text1'][i].strip())]
           real_spec_list = list(real_spec['Text2'].unique())
+          real_spec_list = [spec.replace("'","''") for spec in real_spec_list]
+          text1_str=mat_df['Text1'][i].strip().replace("'","''")
           rea_spec_join = ';'.join(real_spec_list)
           query = "update {} set spec_id = N'{}'  where product = N'{}'  and product_type = 'NAMPROD'\
-                ".format(config.get('mount_path','unstructure_table_name'),rea_spec_join,mat_df['Text1'][i].strip()) 
+                ".format(config.get('mount_path','unstructure_table_name'),rea_spec_join,text1_str) 
           update_operation(query,sql_conn,cursor)
         elif mat_df['Type'][i].strip()=='NAMPROD' and mat_df['SUBCT'][i].strip()=='PURE_SUB' :  
           pure_spec = mat_df['Text2'][i].strip()
           real_spec = relation_df[relation_df['Text1']==pure_spec]
           real_spec_list = list(real_spec['Text2'].unique())
+          real_spec_list = [spec.replace("'","''") for spec in real_spec_list]
+          text1_str=mat_df['Text1'][i].strip().replace("'","''")
           rea_spec_join = ';'.join(real_spec_list)
           query = "update {} set spec_id = N'{}'  where product = N'{}'  and product_type = 'NAMPROD'\
-                ".format(config.get('mount_path','unstructure_table_name'),rea_spec_join,mat_df['Text1'][i].strip()) 
+                ".format(config.get('mount_path','unstructure_table_name'),rea_spec_join,text1_str) 
           update_operation(query,sql_conn,cursor)
         elif mat_df['Type'][i].strip()=='NUMCAS' and mat_df['SUBCT'][i].strip()=='PURE_SUB':
           pure_spec = mat_df['Text2'][i].strip()
           real_spec = relation_df[relation_df['Text1']==pure_spec]
           real_spec_list = list(real_spec['Text2'].unique())
+          real_spec_list = [spec.replace("'","''") for spec in real_spec_list]
+          text1_str=mat_df['Text1'][i].strip().replace("'","''")
           rea_spec_join = ';'.join(real_spec_list)
           query = "update {} set spec_id = N'{}'  where product = N'{}'  and product_type = 'NUMCAS'"\
-                .format(config.get('mount_path','unstructure_table_name'),rea_spec_join,mat_df['Text1'][i].strip())
+                .format(config.get('mount_path','unstructure_table_name'),rea_spec_join,text1_str)
           update_operation(query,sql_conn,cursor)
 
       except:
@@ -141,6 +468,7 @@ def Specification(sql_conn,cursor):
 def unstructure_processed_data(unstructure_processed_data_query,category,product_type,product,data_extract,is_relevant,sql_conn,cursor):
     insert_query = \
     unstructure_processed_data_query.format(category,product_type,product,data_extract,'getdate()','getdate()',is_relevant)
+    print(insert_query)
     update_operation(insert_query,sql_conn,cursor) 
 
 def excel_date(content,excel_file):
@@ -286,7 +614,7 @@ def key_data_extract_external_source(valid_path,sql_conn,cursor,category,unstruc
     logger.error("Error in key_data_extract_external_source function while loading data in sql server  {} \
                  excel".format(valid_path),exc_info=True)
     
-def data_validation_to_relevant_non_relevant_split(data_delta, valid_path, primary_column, comp,sql_conn,cursor,product_inscope_df,matnbr_list,category):
+def data_validation_to_relevant_non_relevant_split(data_delta, valid_path, primary_column, comp,sql_conn,cursor,product_inscope_df,matnbr_list,category,prod_ont_inc_df):
   global consol_data,final
   try:
     logger.info('Executing data_validation_to_relevant_non_relevant_split function for {} excel'.format(valid_path))    
@@ -369,7 +697,7 @@ def data_validation_to_relevant_non_relevant_split(data_delta, valid_path, prima
       final['is_relevant'] = 0
       final['Product_category'] = np.nan
       final['Product_category'].fillna("null", inplace = True) 
-      if not final.shape[0]==0:            
+      if not final.shape[0]==0 and prod_ont_inc_df.empty:            
         final.to_csv(valid_path + 'relevant_data_files/' + 'non_relevant_data.csv', index=None, header=True)   
   except Exception as e:
     logger.error("Error in data_validation_to_relevant_non_relevant_split function while loading relavent and non-relavent data for {} \
@@ -421,7 +749,7 @@ def excel_full_delta_load(valid_path, relevant_data,sql_conn,cursor,sheet_name):
     logger.error("Error in excel_full_delta_load function while loading data from {} ".format(valid_path),exc_info=True)
     
     
-def reading_excel_data_from_source(valid_path, files, component_data, primary_column, comp,sql_conn,cursor,product_inscope_df,unstructure_processed_data_query,excel_date_found,category,sheet_name,matnbr_list):
+def reading_excel_data_from_source(valid_path, files, component_data, primary_column, comp,sql_conn,cursor,product_inscope_df,unstructure_processed_data_query,excel_date_found,category,sheet_name,matnbr_list,prod_ont_inc_df):
   global relevant_data  
   try:
     logger.info('Executing reading_excel_data_from_source function for {} sheet in {}'.format(files,valid_path))
@@ -446,12 +774,16 @@ def reading_excel_data_from_source(valid_path, files, component_data, primary_co
     valid_data.columns = valid_data.columns.str.strip()
     #valid_data.columns = valid_data.columns.str.replace(r'[^\x00-\x7F]+', '')
     relevant_data = valid_data.loc[:, component_columns]
+    if category== 'tox_study_silanes' or category== 'tox_study_selant':
+       relevant_data.set_index(primary_column, inplace=True)
+       relevant_data.index = pd.Series(relevant_data.index).fillna(method='ffill')
+       relevant_data.reset_index(inplace=True)   
     relevant_data.replace({r'[^\x00-\x7F]+':''}, regex=True, inplace=True)
     relevant_data.drop_duplicates(keep='first', inplace=True)
     relevant_data.reset_index(drop=True, inplace=True)
     relevant_data = relevant_data.loc[:,~relevant_data.columns.duplicated()]
     data_delta, valid_path = excel_full_delta_load(valid_path, relevant_data,sql_conn,cursor,sheet_name)
-    data_validation_to_relevant_non_relevant_split(data_delta, valid_path, primary_column, comp,sql_conn,cursor,product_inscope_df,matnbr_list,category)
+    data_validation_to_relevant_non_relevant_split(data_delta, valid_path, primary_column, comp,sql_conn,cursor,product_inscope_df,matnbr_list,category,prod_ont_inc_df)
     valid_excel_path_name = valid_path +sheet_name+ '/' + 'valid_data.csv'
     key_data_extract_external_source(valid_path,sql_conn,cursor,category,
                       unstructure_processed_data_query,excel_date_found,valid_excel_path_name)
@@ -480,7 +812,7 @@ def reading_excel_sources(source_type, sql_conn,cursor):
   except Exception as e:
     logger.error("Error in reading_excel_sources function while reading {} in sql server".format(source_type),exc_info=True)    
     
-def excel_extract2_key_value_pair(valid_path, sql_conn,cursor,category,product_inscope_df,unstructure_processed_data_query,excel_date_found,matnbr_list):
+def excel_extract2_key_value_pair(valid_path, sql_conn,cursor,category,product_inscope_df,unstructure_processed_data_query,excel_date_found,matnbr_list,prod_ont_inc_df):
   try:
     logger.info('Executing excel_extract2_key_value_pair function for {}'.format(valid_path))
     external_source_data = config.get('mount_path','external_excel_source')
@@ -500,7 +832,7 @@ def excel_extract2_key_value_pair(valid_path, sql_conn,cursor,category,product_i
                   sheet_name = sheet.strip()
                   for primary in primary_col:
                     reading_excel_data_from_source(valid_path, files, component_data, primary,comp,sql_conn,cursor,product_inscope_df, 
-                                                   unstructure_processed_data_query,excel_date_found,category,sheet_name,matnbr_list) 
+                                                   unstructure_processed_data_query,excel_date_found,category,sheet_name,matnbr_list,prod_ont_inc_df) 
                     
   except Exception as e:
     logger.error("Error in excel_extract2_key_value_pair function while processing {}".format(valid_path),exc_info=True)    
@@ -675,10 +1007,12 @@ def text_Key_extract(file,filter_df,content,staging_raw_file_path,file_images):
 
         #******************************
         #checking index of start key
-        #******************************
+        #*****************************
         for match in re.finditer(rgx,content1):
+            #print(match.group())
             if match.group():
                 start_string_index = match.start()
+                #print('strat string index', start_string_index)
                 break
         if  start_string_index is not None:            
             #******************************
@@ -769,14 +1103,13 @@ def text_Key_extract(file,filter_df,content,staging_raw_file_path,file_images):
                         continue
                       else:
                         start_string_index = content1.rfind(filter_df['start_key'][index_df])
+                        if start_string_index == -1:
+                          start_string_index = content1.lower().rfind(filter_df['start_key'][index_df])
                         break                                                                                                               
-                      
         if  start_string_index is not None and end_string_index is not  None :#and end:
             if filter_df['start_key'][index_df].strip().lower() == '\\n':
               start_string_index1 = content1[:end_string_index].rfind('\n',)
               start_string_index = content1[:start_string_index1].rfind('\n',)
-#             print(start_string_index) 
-#             print(end_string_index)
             text_extract = content1[start_string_index:end_string_index].replace('\n',' ')#.replace('\u2014'
         
             #********************************************************************************
@@ -864,7 +1197,7 @@ def text_Key_extract(file,filter_df,content,staging_raw_file_path,file_images):
     logger.error("Error in text_Key_extract function while processing {}".format(file),exc_info=True)
 
 def heavy_metals(heavy_file,file_loc,sql_conn,cursor,category,product_inscope_df, 
-                                                 unstructure_processed_data_query,content,excel_date_found):
+                                                 unstructure_processed_data_query,content,excel_date_found,prod_ont_inc_df):
   try:
     data = pd.read_csv(heavy_file, encoding='iso-8859-1')
     hvy_flag=0
@@ -970,7 +1303,7 @@ def heavy_metals(heavy_file,file_loc,sql_conn,cursor,category,product_inscope_df
       final['is_relevant'] = 0
       final['Product_category'] = np.nan
       final['Product_category'].fillna("null", inplace = True) 
-      if not final.shape[0]==0:
+      if not final.shape[0]==0 and prod_ont_inc_df.empty:
         final = final.astype(str)
         heavy_columns = final.columns
         final = final.loc[:,~final.columns.duplicated()]      
@@ -990,7 +1323,7 @@ def heavy_metals(heavy_file,file_loc,sql_conn,cursor,category,product_inscope_df
   except Exception as e:
         logger.error('Error while heavy metals from {}'.format(heavy_file),exc_info=True)          
 def table_data_extract(table_file,file_loc,sql_conn,cursor,category,product_inscope_df, 
-                                           unstructure_processed_data_query,content):
+                                           unstructure_processed_data_query,content,prod_ont_inc_df):
   try:
         if not os.path.exists(file_loc):
           path_exists(file_loc)
@@ -1008,7 +1341,8 @@ def table_data_extract(table_file,file_loc,sql_conn,cursor,category,product_insc
           path_exists(processed_path)
 #         dbutils.fs.cp(staging_raw_file_path.replace("/dbfs","dbfs:").replace('//','/').strip(), 
 #                       processed_path.replace("/dbfs","dbfs:").replace('//','/'))
-        shutil.copy(staging_raw_file_path.replace("dbfs:","/dbfs").replace('//','/'),processed_path.replace("dbfs:","/dbfs").replace('//','/'))  
+        if prod_ont_inc_df.empty:
+          shutil.copy(staging_raw_file_path.replace("dbfs:","/dbfs").replace('//','/'),processed_path.replace("dbfs:","/dbfs").replace('//','/'))  
         
         if not tables:
             tables = camelot.read_pdf(table_file, pages='1', flavor='stream')
@@ -1082,15 +1416,16 @@ def table_data_extract(table_file,file_loc,sql_conn,cursor,category,product_insc
                         unstructure_processed_data(unstructure_processed_data_query,category,product_inscope_df['Type']
                                                  [index_col].strip(),prod_txt,data_extract,1,sql_conn,cursor)
                     else:
-                      for tab_index in df.index:
-                        data_extract={}
-                        for   inc_col in  inci_columns: 
-                          data_extract[inc_col] = df[inc_col][tab_index]  
-                        data_extract['file_path']  = processed_path.replace("dbfs:","/dbfs") + staging_raw_file_path.rsplit('/',1)[1]
-                        data_extract['file_name']  = staging_raw_file_path.rsplit('/',1)[1]  
-                        data_extract = json.dumps(data_extract,ensure_ascii=False)
-                        unstructure_processed_data(unstructure_processed_data_query,category,
-                        'null',prod_txt,data_extract,1,sql_conn,cursor)
+                      if prod_ont_inc_df.empty:
+                        for tab_index in df.index:
+                          data_extract={}
+                          for   inc_col in  inci_columns: 
+                            data_extract[inc_col] = df[inc_col][tab_index]  
+                          data_extract['file_path']  = processed_path.replace("dbfs:","/dbfs") + staging_raw_file_path.rsplit('/',1)[1]
+                          data_extract['file_name']  = staging_raw_file_path.rsplit('/',1)[1]  
+                          data_extract = json.dumps(data_extract,ensure_ascii=False)
+                          unstructure_processed_data(unstructure_processed_data_query,category,
+                          'null',prod_txt,data_extract,1,sql_conn,cursor)
             else:
                   name_mul = name_co11 *  (data.shape[0]-1) 
                   name_mul.insert(0,'Product Name')
@@ -1111,15 +1446,16 @@ def table_data_extract(table_file,file_loc,sql_conn,cursor,category,product_insc
                         unstructure_processed_data(unstructure_processed_data_query,category,product_inscope_df['Type']
                                                  [index_col].strip(),prod_txt,data_extract,1,sql_conn,cursor)
                     else:
-                      for tab_index in df.index:
-                        data_extract={}
-                        for   inc_col in  inci_columns: 
-                          data_extract[inc_col] = df[inc_col][tab_index]   
-                        data_extract['file_path']  = processed_path.replace("dbfs:","/dbfs") + staging_raw_file_path.rsplit('/',1)[1]
-                        data_extract['file_name']  = staging_raw_file_path.rsplit('/',1)[1]
-                        data_extract = json.dumps(data_extract,ensure_ascii=False)
-                        unstructure_processed_data(unstructure_processed_data_query,category,
-                        'null',prod_txt,data_extract,1,sql_conn,cursor)
+                      if prod_ont_inc_df.empty:
+                        for tab_index in df.index:
+                          data_extract={}
+                          for   inc_col in  inci_columns: 
+                            data_extract[inc_col] = df[inc_col][tab_index]   
+                          data_extract['file_path']  = processed_path.replace("dbfs:","/dbfs") + staging_raw_file_path.rsplit('/',1)[1]
+                          data_extract['file_name']  = staging_raw_file_path.rsplit('/',1)[1]
+                          data_extract = json.dumps(data_extract,ensure_ascii=False)
+                          unstructure_processed_data(unstructure_processed_data_query,category,
+                          'null',prod_txt,data_extract,1,sql_conn,cursor)
                   else:
                     column_values = pd.DataFrame(value_final)
                     df = header.append(column_values)
@@ -1141,15 +1477,16 @@ def table_data_extract(table_file,file_loc,sql_conn,cursor,category,product_insc
                         unstructure_processed_data(unstructure_processed_data_query,category,product_inscope_df['Type']
                                                  [index_col].strip(),prod_txt,data_extract,1,sql_conn,cursor)
                     else:
-                      for tab_index in df.index:
-                        data_extract={}
-                        for   inc_col in  inci_columns: 
-                          data_extract[inc_col] = df[inc_col][tab_index]  
-                        data_extract['file_path']  = processed_path.replace("dbfs:","/dbfs") + staging_raw_file_path.rsplit('/',1)[1]
-                        data_extract['file_name']  = staging_raw_file_path.rsplit('/',1)[1]  
-                        data_extract = json.dumps(data_extract,ensure_ascii=False)
-                        unstructure_processed_data(unstructure_processed_data_query,category,
-                        'null',prod_txt,data_extract,1,sql_conn,cursor)
+                      if prod_ont_inc_df.empty:
+                        for tab_index in df.index:
+                          data_extract={}
+                          for   inc_col in  inci_columns: 
+                            data_extract[inc_col] = df[inc_col][tab_index]  
+                          data_extract['file_path']  = processed_path.replace("dbfs:","/dbfs") + staging_raw_file_path.rsplit('/',1)[1]
+                          data_extract['file_name']  = staging_raw_file_path.rsplit('/',1)[1]  
+                          data_extract = json.dumps(data_extract,ensure_ascii=False)
+                          unstructure_processed_data(unstructure_processed_data_query,category,
+                          'null',prod_txt,data_extract,1,sql_conn,cursor)
 
   except Exception as e:
         logger.error('Error while extracting tables from {}'.format(table_file),exc_info=True)
@@ -1170,7 +1507,7 @@ def table_data_extract(table_file,file_loc,sql_conn,cursor,category,product_insc
 #file_validation: Moves the file to relevant and non-relevant folder based on the product_inscope
 #called by: pattern_match_validation
 #**************************************************************************************************************************************     
-def relavent_image_extract(file,file_loc,content,product_inscope_df,category,file_is_valid_query,file_unique_list,sql_conn,cursor,unstruct_category_key_df,raw_df,unstructure_processed_data_query):  
+def relavent_image_extract(file,file_loc,content,product_inscope_df,category,file_is_valid_query,file_unique_list,sql_conn,cursor,unstruct_category_key_df,raw_df,unstructure_processed_data_query,prod_ont_inc_df):  
   global image_folder_list  
   try: 
       #print(file)
@@ -1179,10 +1516,7 @@ def relavent_image_extract(file,file_loc,content,product_inscope_df,category,fil
       product_list_lower= []
       product_type_list =[]
       data_extract={}
-      target_temp=image_data_extract(file)  
-      #print(target_temp)
-      file_name =  file.split('/')[-1].rsplit('.',1)[0]
-      img_count = 0 
+      
       #*********************************************************
       #checking the  PROD present in the exrtacted content 
       #*********************************************************                                                  
@@ -1203,6 +1537,24 @@ def relavent_image_extract(file,file_loc,content,product_inscope_df,category,fil
                   
            except Exception as e:
                 logger.error("Error in relavent_image_extract function inner iteration",exc_info=True)
+       
+      #print(target_temp)
+      file_name =  file.split('/')[-1].rsplit('.',1)[0]
+      img_count = 0 
+      target_temp =[]
+      if len(product_list) > 0:
+        target_temp=image_data_extract(file)
+      else:
+        if prod_ont_inc_df.empty:
+          pdf1_filename = file_loc + 'non-relavent/'
+          data_extract = {}
+          if not os.path.exists(pdf1_filename) :
+              path_exists(pdf1_filename)   
+          shutil.copy(file,pdf1_filename)
+          data_extract['file_path']  = pdf1_filename.replace("dbfs:","/dbfs")+file.rsplit('/',1)[1]                        
+          data_extract['source_path']  = file
+          data_extract = json.dumps(data_extract,ensure_ascii=False)
+          unstructure_processed_data(unstructure_processed_data_query,category,'null','null',data_extract,0,sql_conn,cursor) 
       #print('product_list',product_list)        
 #       if len(product_list) ==0:
 #         pdf1_filename = file_loc + 'non-relavent/'
@@ -1262,25 +1614,25 @@ def relavent_image_extract(file,file_loc,content,product_inscope_df,category,fil
         product_unique_list_main =  product_unique_list_main +  product_unique_list
         product_unique_path_main =  product_unique_path_main +  product_unique_path
         product_unique_main_path = product_unique_main_path + product_main_path  
-      if len(product_unique_list_main) == 0:
-            product_unique_list_main.append('non_relevant')
-            product_unique_path_main.append(file) 
-            product_unique_main_path.append(file)
-      image_df = pd.DataFrame()
-      image_df['product'] = product_unique_list_main
-      image_df['file_path'] = product_unique_path_main
-      image_df['main_path'] = product_unique_main_path
-      non_relavent_img = image_df[image_df['product']=='non_relevant']
-      if not non_relavent_img.empty :
-        pdf1_filename = file_loc + 'non-relavent/'
-        data_extract = {}
-        if not os.path.exists(pdf1_filename) :
-            path_exists(pdf1_filename)   
-        shutil.copy(file,pdf1_filename)
-        data_extract['file_path']  = pdf1_filename.replace("dbfs:","/dbfs")+file.rsplit('/',1)[1]                        
-        data_extract['source_path']  = file
-        data_extract = json.dumps(data_extract,ensure_ascii=False)
-        unstructure_processed_data(unstructure_processed_data_query,category,'null','null',data_extract,0,sql_conn,cursor) 
+#       if len(product_unique_list_main) == 0:
+#             product_unique_list_main.append('non_relevant')
+#             product_unique_path_main.append(file) 
+#             product_unique_main_path.append(file)
+#       image_df = pd.DataFrame()
+#       image_df['product'] = product_unique_list_main
+#       image_df['file_path'] = product_unique_path_main
+#       image_df['main_path'] = product_unique_main_path
+#       non_relavent_img = image_df[image_df['product']=='non_relevant']
+#       if not non_relavent_img.empty and prod_ont_inc_df.empty :
+#         pdf1_filename = file_loc + 'non-relavent/'
+#         data_extract = {}
+#         if not os.path.exists(pdf1_filename) :
+#             path_exists(pdf1_filename)   
+#         shutil.copy(file,pdf1_filename)
+#         data_extract['file_path']  = pdf1_filename.replace("dbfs:","/dbfs")+file.rsplit('/',1)[1]                        
+#         data_extract['source_path']  = file
+#         data_extract = json.dumps(data_extract,ensure_ascii=False)
+#         unstructure_processed_data(unstructure_processed_data_query,category,'null','null',data_extract,0,sql_conn,cursor) 
       for prod_df_list in product_list:
         data_extract ={}
         relavent_img = image_df[image_df['product']==prod_df_list]
@@ -1339,7 +1691,7 @@ def valid_files_copy(file,file_valid_type,data_extract):
 #file_validation: Moves the file to relevant and non-relevant folder based on the product_inscope
 #called by: pattern_match_validation
 #**************************************************************************************************************************************   
-def relavent_text_extract(file,staging_file,file_loc,content,product_inscope_df,category,file_is_valid_query,file_unique_list,sql_conn,cursor,unstruct_category_key_df,raw_df,unstructure_processed_data_query,sil_elast_product_list= None):
+def relavent_text_extract(file,staging_file,file_loc,content,product_inscope_df,category,file_is_valid_query,file_unique_list,sql_conn,cursor,unstruct_category_key_df,raw_df,unstructure_processed_data_query,prod_ont_inc_df,sil_elast_product_list= None,):                          
   try: 
       #sil_elast_product_list= None
       #staging_file_split =  staging_file_split.rsplit('/',1)[-1].rspli
@@ -1366,7 +1718,8 @@ def relavent_text_extract(file,staging_file,file_loc,content,product_inscope_df,
 #       dbutils.fs.cp(staging_raw_file_path.replace("/dbfs","dbfs:").replace('//','/').strip(), 
 #                     processed_path.replace("/dbfs","dbfs:"))
       #staging_files = 
-      shutil.copy(staging_raw_file_path.replace("dbfs:","/dbfs").replace('//','/'),processed_path.replace("dbfs:","/dbfs").replace('//','/'))          
+      if prod_ont_inc_df.empty:
+        shutil.copy(staging_raw_file_path.replace("dbfs:","/dbfs").replace('//','/'),processed_path.replace("dbfs:","/dbfs").replace('//','/'))          
       
       data_extract['file_path']  = processed_path.replace("dbfs:","/dbfs") + staging_raw_file_path.rsplit('/',1)[1]
       data_extract['file_name']  = staging_raw_file_path.rsplit('/',1)[1]
@@ -1384,10 +1737,8 @@ def relavent_text_extract(file,staging_file,file_loc,content,product_inscope_df,
                                                                                     [prod_index].strip())),content,re.I)   
                 if(prod_rgx):
                     prod_txt =  product_inscope_df['Text'][prod_index].strip().upper()
-                   # print(prod_txt)
                     prod_flag = 's'  
                     if prod_txt not in product_inscope_loop:
-                     # print(product_inscope_loop)
                       product_inscope_loop.append(prod_txt)
                       logger.info('{} Successfully passed the inscope validation by containing {} {} in the \
                                   content'.format(file,product_inscope_df['Type'][prod_index].strip(),prod_txt))   
@@ -1418,7 +1769,7 @@ def relavent_text_extract(file,staging_file,file_loc,content,product_inscope_df,
       #*************************************************************************************************************
       #Moving the files to Non-relevant folder if NAM PROD, BDT, EU and US-FDA not in the content
       #*************************************************************************************************************
-      if prod_flag != 's'   and sil_prod_flag != 's' :         
+      if prod_flag != 's'   and sil_prod_flag != 's' and prod_ont_inc_df.empty:         
             logger.info('{} it does not fall under incsope product, So moving this to {}'.format(file,file_non_relavent))
             valid_files_copy(file,file_non_relavent,data_extract) 
             unstructure_processed_data(unstructure_processed_data_query,category,'null','null',data_extract,0,sql_conn,cursor)
@@ -1452,7 +1803,7 @@ def relavent_text_extract(file,staging_file,file_loc,content,product_inscope_df,
 #output parameter:
 #unstruct_data_df: will hold all the valid file paths, categories and product keys which will be input for key value extract function
 #******************************************************************************************************************************************   
-def pattern_match_validation(sql_conn,external_processed_files_df,cursor,unstruct_category_key_df,raw_df,unstructure_processed_data_query):
+def pattern_match_validation(sql_conn,external_processed_files_df,cursor,unstruct_category_key_df,raw_df,unstructure_processed_data_query,product_his_df,prod_ont_inc_df):
   try:
     logger.info('Executing pattern_match_validation for all exctracted files')
     external_processed_files = external_processed_files_df['blob_all_txt_file_path'].values.tolist()
@@ -1465,58 +1816,68 @@ def pattern_match_validation(sql_conn,external_processed_files_df,cursor,unstruc
     pattern_category = list(set(pattern_key_df['pattern_category'].values.tolist()))
     pattern_image_list = pattern_key_df[pattern_key_df['result_type'].astype('str').str.contains('1')]['pattern_keys'].values.tolist()
     file_is_valid_query = config.get('mount_path', 'file_is_valid')
-    product_inscope_query = config.get('mount_path','product_inscope')
-    product_inscope_df = external_source_data(sql_conn,product_inscope_query)
-    ontology_query = config.get('mount_path','ontology_inscope')
-    ontology_key_df = external_source_data(sql_conn,ontology_query)
-    ontology_key_df.replace(r'^\s*$', np.nan, regex=True,inplace=True)
-    ontology_key_df = ontology_key_df.fillna('null')
-    ontology_bdt_df = ontology_key_df[ontology_key_df['key_type'].str.contains('BDT',case=False)]
-    ontology_namprod_df =  ontology_key_df[ontology_key_df['key_type'].str.contains('NAMPROD',case=False)]                 
-    ontology_bdt_list = [] 
-    ontology_namprod_list = []                                 
-    if  not  ontology_bdt_df.empty:                                           
-      ontology_bdt_list = list(set(ontology_bdt_df['ontology_key'].values.tolist()))                                    
-    if  not  ontology_namprod_df.empty:
-      ontology_namprod_list = list(set(ontology_namprod_df['ontology_key'].values.tolist()))                                       
-    ela_list = list(set(ontology_key_df['ontology_value'].values.tolist()))                                      
-    product_inscope_df.replace(r'^\s*$', np.nan, regex=True,inplace=True)
-    product_inscope_df = product_inscope_df.fillna('null')
-    #product_inscope_df = product_inscope_df.fillna('null')
-    silicone_elastomer_product_query = config.get('mount_path','silicone_elastomer_product')
-    silicone_elastomer_product_df =  external_source_data(sql_conn,silicone_elastomer_product_query) 
-    matnbr_list = list(set(product_inscope_df[product_inscope_df['Type'].str.contains('MATNBR')]['Text1'].values.tolist()))
-    matnbr_list1 = [str(i).lstrip('0') for i in matnbr_list]
-    matnbr_list = list(set(matnbr_list + matnbr_list1))    
-    bdt_list = list(set(product_inscope_df[product_inscope_df['Type'].str.contains('MATNBR')]['Text3'].values.tolist()))
-    nam_prod_list = list(set(product_inscope_df[product_inscope_df['Type'].str.contains('NAMPROD')]['Text1'].values.tolist()))
-    nam_prod_list_FDA = list(set(product_inscope_df[product_inscope_df['Type'].str.contains('NAMPROD') & 
-                                                    product_inscope_df['SUBCT'].str.contains('REAL_SUB')]['Text1'].values.tolist()))
-    cas_list = list(set(product_inscope_df[product_inscope_df['Type'].str.contains('NUMCAS')]['Text1'].values.tolist()))
-    product_type_list_fda = ['NAMPROD'] * len(nam_prod_list_FDA) + ['BDT'] * len(bdt_list) +  ['NUMCAS'] * len(cas_list) + ['BDT'] * \
-                            len(ontology_bdt_list) + ['NAMPROD'] * len(ontology_namprod_list) + ['Ont_vlaue'] * len(ela_list)
-    product_type_list= ['NAMPROD'] * len(nam_prod_list) + ['BDT'] * len(bdt_list) +  ['NUMCAS'] * len(cas_list) + \
-                      ['BDT'] *  len(ontology_bdt_list) + ['NAMPROD'] * len(ontology_namprod_list) +  \
-                    ['Ont_vlaue'] * len(ela_list) 
-    product_valid_list = nam_prod_list + bdt_list + cas_list  + ontology_bdt_list + ontology_namprod_list + ela_list
-    product_valid_list_fda = nam_prod_list_FDA + bdt_list + cas_list + ontology_bdt_list + ontology_namprod_list + ela_list 
-    product_inscope_df = pd.DataFrame(columns=['Type', 'Text'])
-    product_inscope_df['Type'] = product_type_list
-    product_inscope_df['Text'] = product_valid_list
-    product_inscope_df_fda = pd.DataFrame(columns=['Type', 'Text'])
-    product_inscope_df_fda['Type'] = product_type_list_fda
-    product_inscope_df_fda['Text'] = product_valid_list_fda
-    silicone_elastomer_product_query = config.get('mount_path','silicone_elastomer_product')
-    silicone_elastomer_product_df =  external_source_data(sql_conn,silicone_elastomer_product_query)  
-    silicone_elastomer_product_df=silicone_elastomer_product_df.rename(columns = {'eu_fda':'EU-FDA','us_fda':'US-FDA'})
+#     product_inscope_query = config.get('mount_path','product_inscope')
+#     product_inscope_df = external_source_data(sql_conn,product_inscope_query)
+#     ontology_query = config.get('mount_path','ontology_inscope')
+#     ontology_key_df = external_source_data(sql_conn,ontology_query)
+#     ontology_key_df.replace(r'^\s*$', np.nan, regex=True,inplace=True)
+#     ontology_key_df = ontology_key_df.fillna('null')
+#     ontology_bdt_df = ontology_key_df[ontology_key_df['key_type'].str.contains('BDT',case=False)]
+#     ontology_namprod_df =  ontology_key_df[ontology_key_df['key_type'].str.contains('NAMPROD',case=False)]                 
+#     ontology_bdt_list = [] 
+#     ontology_namprod_list = []                                 
+#     if  not  ontology_bdt_df.empty:                                           
+#       ontology_bdt_list = list(set(ontology_bdt_df['ontology_key'].values.tolist()))                                    
+#     if  not  ontology_namprod_df.empty:
+#       ontology_namprod_list = list(set(ontology_namprod_df['ontology_key'].values.tolist()))                                       
+#     ela_list = list(set(ontology_key_df['ontology_value'].values.tolist()))                                      
+#     product_inscope_df.replace(r'^\s*$', np.nan, regex=True,inplace=True)
+#     product_inscope_df = product_inscope_df.fillna('null')
+# #     product_inscope_df = product_inscope_df.fillna('null')
+# #     silicone_elastomer_product_query = config.get('mount_path','silicone_elastomer_product')
+# #     silicone_elastomer_product_df =  external_source_data(sql_conn,silicone_elastomer_product_query) 
+#     matnbr_list = list(set(product_inscope_df[product_inscope_df['Type'].str.contains('MATNBR')]['Text1'].values.tolist()))
+#     matnbr_list1 = [str(i).lstrip('0') for i in matnbr_list]
+#     matnbr_list = list(set(matnbr_list + matnbr_list1))    
+#     bdt_list = list(set(product_inscope_df[product_inscope_df['Type'].str.contains('MATNBR')]['Text3'].values.tolist()))
+#     nam_prod_list = list(set(product_inscope_df[product_inscope_df['Type'].str.contains('NAMPROD')]['Text1'].values.tolist()))
+#     nam_prod_list_FDA = list(set(product_inscope_df[product_inscope_df['Type'].str.contains('NAMPROD') & 
+#                                                     product_inscope_df['SUBCT'].str.contains('REAL_SUB')]['Text1'].values.tolist()))
+#     cas_list = list(set(product_inscope_df[product_inscope_df['Type'].str.contains('NUMCAS')]['Text1'].values.tolist()))
+#     product_type_list_fda = ['NAMPROD'] * len(nam_prod_list_FDA) + ['BDT'] * len(bdt_list) +  ['NUMCAS'] * len(cas_list) + ['BDT'] * \
+#                             len(ontology_bdt_list) + ['NAMPROD'] * len(ontology_namprod_list) + ['Ont_vlaue'] * len(ela_list)
+#     product_type_list= ['NAMPROD'] * len(nam_prod_list) + ['BDT'] * len(bdt_list) +  ['NUMCAS'] * len(cas_list) + \
+#                       ['BDT'] *  len(ontology_bdt_list) + ['NAMPROD'] * len(ontology_namprod_list) +  \
+#                     ['Ont_vlaue'] * len(ela_list) 
+#     product_valid_list = nam_prod_list + bdt_list + cas_list  + ontology_bdt_list + ontology_namprod_list + ela_list
+#     product_valid_list_fda = nam_prod_list_FDA + bdt_list + cas_list + ontology_bdt_list + ontology_namprod_list + ela_list 
+    if prod_ont_inc_df.empty:
+      product_inscope_df = product_his_df
+      product_inscope_df_fda = product_his_df
+#       product_inscope_df = pd.DataFrame(columns=['Type', 'Text'])
+#       product_inscope_df['Type'] = product_type_list
+#       product_inscope_df['Text'] = product_valid_list
+#       product_inscope_df_fda = pd.DataFrame(columns=['Type', 'Text'])
+#       product_inscope_df_fda['Type'] = product_type_list_fda
+#       product_inscope_df_fda['Text'] = product_valid_list_fda
+    else:
+      product_inscope_df = prod_ont_inc_df
+      product_inscope_df_fda = prod_ont_inc_df
+#     silicone_elastomer_product_query = config.get('mount_path','silicone_elastomer_product')
+#     silicone_elastomer_product_df =  external_source_data(sql_conn,silicone_elastomer_product_query)  
+#     silicone_elastomer_product_df=silicone_elastomer_product_df.rename(columns = {'eu_fda':'EU-FDA','us_fda':'US-FDA'})
+    print('prod',product_inscope_df.tail(10))
+    print(len(extracted_file_list))
     file_unique_list =[]
     unique_file_check = []
-    file_counting =0 
+    file_counting =0
+ #   extracted_file_list.clear()
     #**********************************************
     #Iterating each files for pattern matching 
     #**********************************************
-    for index in range(len(external_processed_files)):    
+    for index in range(len(external_processed_files)):   
       try:
+        #break
         image_falg =''
         analytics_valid_path = external_processed_files[index].rsplit('all-text',1)[0] + 'valid-files/'
         analytics_invalid_path = external_processed_files[index].rsplit('all-text',1)[0] + 'invalid-files/'
@@ -1528,8 +1889,8 @@ def pattern_match_validation(sql_conn,external_processed_files_df,cursor,unstruc
         if file in extracted_file_list and file not in unique_file_check :
           unique_file_check.append(file)
           file_counting+=1
-          #print(file)
           print('file_counting',file_counting)
+          print(file)          
           try:
             content = open(file.strip(), 'r', encoding = 'utf-8').read()
           except UnicodeDecodeError:
@@ -1598,7 +1959,7 @@ def pattern_match_validation(sql_conn,external_processed_files_df,cursor,unstruc
                                         '.format(heavy_file))        
                           excel_date_found = excel_date(content,file)
                           heavy_metals(heavy_file,file_loc,sql_conn,cursor,pattern_cat_match.strip(),product_inscope_df, 
-                                               unstructure_processed_data_query,content,excel_date_found)
+                                               unstructure_processed_data_query,content,excel_date_found,prod_ont_inc_df)
                           file_valid_flag ='s'         
 
               #****************************************************
@@ -1615,14 +1976,11 @@ def pattern_match_validation(sql_conn,external_processed_files_df,cursor,unstruc
                   if all(int(match.lower().strip()) == 0 for match in pattern_result_list):                         
                       logger.info('{} its a text extraction type so moving this file to relavent_text_extract function'.format(file))
                       sil_elast_product_list = None
-                      for match_mpm_cat in silicone_elastomer_product_df.columns:
-                          if match_mpm_cat.lower().strip() == pattern_cat_match.strip().lower():                            
-                              sil_elast_product_list = list(set(silicone_elastomer_product_df[match_mpm_cat].values.tolist())) 
+#                       for match_mpm_cat in silicone_elastomer_product_df.columns:
+#                           if match_mpm_cat.lower().strip() == pattern_cat_match.strip().lower():                            
+#                               sil_elast_product_list = list(set(silicone_elastomer_product_df[match_mpm_cat].values.tolist())) 
                       staging_file = file.rsplit('all-text',1)[0] + 'staging-archive/' + file.rsplit('/',1)[1].rsplit('.',1)[0] + \
                         external_satging_file_format[index].strip()        
-#                       if file.rsplit('/',1)[1].rsplit('.',1)[0] in  file_list_imported:
-#                           inf = file_list_imported.index(file.rsplit('/',1)[1].rsplit('.',1)[0])
-#                           staging_file = file_list_imported1[inf]
                       if os.path.exists(staging_file):
                           staging_file = staging_file
                       else:
@@ -1644,7 +2002,7 @@ def pattern_match_validation(sql_conn,external_processed_files_df,cursor,unstruc
                         if mol_prod_flag!='s':                                                    
                           relavent_text_extract(file,staging_file,file_loc,content,product_inscope_df,pattern_cat_match.strip(),
                             file_is_valid_query,file_unique_list,sql_conn,cursor,unstruct_category_key_df,                      
-                            raw_df,unstructure_processed_data_query,sil_elast_product_list)                                 
+                            raw_df,unstructure_processed_data_query,prod_ont_inc_df,sil_elast_product_list)                                 
                         file_valid_flag ='s'
                   #******************************************************************************************
                   #validating for relavent and non-relavant file if the key-value extract is image from file
@@ -1664,9 +2022,6 @@ def pattern_match_validation(sql_conn,external_processed_files_df,cursor,unstruc
                         
                         file1 = file.rsplit('all-text',1)[0] + 'staging-archive/' + file.rsplit('/',1)[1].rsplit('.',1)[0] + \
                         external_satging_file_format[index].strip()
-#                         if file.rsplit('/',1)[1].rsplit('.',1)[0] in  file_list_imported:
-#                           inf = file_list_imported.index(file.rsplit('/',1)[1].rsplit('.',1)[0])
-#                           file1 = file_list_imported1[inf]
                         if os.path.exists(file1):
                           file1 = file1
                         else:
@@ -1675,14 +2030,12 @@ def pattern_match_validation(sql_conn,external_processed_files_df,cursor,unstruc
                             product_inscope_df = product_inscope_df_fda
                         product_inscope_df = product_inscope_df_fda                        
                         if file1.strip().lower().endswith('.pdf'):
-                        # and not file.endswith('.xlsm') and not file.endswith('.csv'):    
-                          #print('yyy',file1)
                           file_is_valid = file_is_valid_query.format(1,1,'null',file.replace("dbfs:","/dbfs"))
                           update_operation(file_is_valid,sql_conn,cursor)
                           logger.info('{} its a image extraction type so moving this file to relavent_image_extract function \
                                       '.format(file))
                           relavent_image_extract(file1,file_loc,content,product_inscope_df,pattern_cat_match.strip(),file_is_valid_query,
-                          file_unique_list,sql_conn,cursor,unstruct_category_key_df,raw_df,unstructure_processed_data_query) 
+                          file_unique_list,sql_conn,cursor,unstruct_category_key_df,raw_df,unstructure_processed_data_query,prod_ont_inc_df) 
                           file_valid_flag ='s'
                           #print('file_valid_flag',file_valid_flag)
                                                                                                                                                  
@@ -1702,7 +2055,7 @@ def pattern_match_validation(sql_conn,external_processed_files_df,cursor,unstruc
                         content = file.rsplit('/',1)[1] 
                       excel_date_found = excel_date(content,file)
                       excel_extract2_key_value_pair(valid_path,sql_conn,cursor,pattern_cat_match.strip(),product_inscope_df, 
-                                           unstructure_processed_data_query,excel_date_found,matnbr_list)
+                                           unstructure_processed_data_query,excel_date_found,matnbr_list,prod_ont_inc_df)
                       file_valid_flag ='s'  
   
                   #******************************************************************************************
@@ -1719,7 +2072,7 @@ def pattern_match_validation(sql_conn,external_processed_files_df,cursor,unstruc
                       logger.info('{} its a Excel extraction type so moving this file to excel_extract2_key_value_pair function \
                                     '.format(table_file))            
                       table_data_extract(table_file,file_loc,sql_conn,cursor,pattern_cat_match.strip(),product_inscope_df, 
-                                           unstructure_processed_data_query,content)
+                                           unstructure_processed_data_query,content,prod_ont_inc_df)
                       file_valid_flag ='s'              
           image_file_name = file.rsplit('/',1)[1]    
           #print('file_valid_flag1',file_valid_flag)
@@ -1746,7 +2099,7 @@ def pattern_match_validation(sql_conn,external_processed_files_df,cursor,unstruc
                     logger.info('{} its a image extraction type so moving this file to relavent_image_extract function \
                                 '.format(file))
                     relavent_image_extract(file1,file_loc,content,product_inscope_df,pattern_catch_found.strip(),file_is_valid_query,
-                    file_unique_list,sql_conn,cursor,unstruct_category_key_df,raw_df,unstructure_processed_data_query) 
+                    file_unique_list,sql_conn,cursor,unstruct_category_key_df,raw_df,unstructure_processed_data_query,prod_ont_inc_df) 
                     file_valid_flag ='s'
           #*************************************************************************************************
           #Moving the files to invalid-files folder as file content doesn't fall under pattern validation
@@ -2783,7 +3136,6 @@ def Sql_db_connection():
     return sql_conn    
   except Exception as e:
     logger.error('Something went wrong in the Sql_db_connection function', exc_info=True)
-
 #****************************************************************************************************************************************** 
 #Function name: Main 
 #Objective: Program will start process using this function 
@@ -2823,8 +3175,48 @@ def main():
       external_folder_structure = external_source_data(sql_conn,external_folder_structure_query)
       external_source_file_formats = external_source_data(sql_conn,file_format_query)['file_format'].values.tolist()
       file_processing_blob_all_txt_list = external_source_data(sql_conn,file_processing_blob_all_txt_info)\
-                                          ['blob_all_txt_file_path'].values.tolist()      
+                                          ['blob_all_txt_file_path'].values.tolist()        
+      unstruct_category_key_query = config.get('mount_path','unstruct_category_key')
+      unstruct_category_key_df = external_source_data(sql_conn,unstruct_category_key_query)
+      unstructure_processed_data_query = config.get('mount_path', 'unstructure_processed_data')
+      product_his_df,product_inc_df=product_check(sql_conn,cursor)
+      ont_his_df,prod_ont_inc_df = ontology_check(sql_conn,cursor) 
+      prod_ont_flag =''
+      if prod_ont_inc_df.shape[0] > 0 or product_inc_df.shape[0] > 0:
+        ont_value_type = ['Ont_vlaue'] * len(prod_ont_inc_df['synonyms/extract'].values.tolist())
+        ont_value_text = prod_ont_inc_df['synonyms/extract'].values.tolist()
+        prod_ont_inc_df['Type'] = ont_value_type
+        prod_ont_inc_df['Text'] = ont_value_text
+        prod_ont_inc_df=prod_ont_inc_df[['Type', 'Text']]
+        prod_ont_inc_df = prod_ont_inc_df.append(product_inc_df)
+        prod_ont_inc_df.reset_index(drop=True, inplace=True) 
+        valid_files = config.get('mount_path', 'valid_files')
+        valid_blob_all_txt_list = external_source_data(sql_conn,valid_files)\
+                                          ['blob_all_txt_file_path'].values.tolist()
+        extracted_file_list.extend(valid_blob_all_txt_list)
+        external_file_process_query = config.get('mount_path', 'external_file_process')
+        external_processed_files_df = external_source_data(sql_conn,external_file_process_query)
+        raw_df= pd.DataFrame()
+        product_his_df_dummy=pd.DataFrame()
+        #extracted_file_list.clear()           
+        pattern_match_validation(sql_conn,external_processed_files_df,cursor,unstruct_category_key_df
+                               ,raw_df,unstructure_processed_data_query,product_his_df_dummy,prod_ont_inc_df)
+        change_audit_query = config.get('mount_path', 'change_audit_query')
+        update_operation(change_audit_query,sql_conn,cursor)
+        prod_ont_flag ='s'
+      prod_ont_inc_df = pd.DataFrame()
+      product_inc_df = pd.DataFrame()
+      extracted_file_list.clear()
+      ont_value_type = ['Ont_vlaue'] * len(ont_his_df['ontology_value'].values.tolist())
+      ont_value_text = ont_his_df['ontology_value'].values.tolist()
+      ont_his_df['Type'] = ont_value_type
+      ont_his_df['Text'] = ont_value_text
+      ont_his_df=ont_his_df[['Type', 'Text']]
+      product_his_df = product_his_df.append(ont_his_df)
+      product_his_df.reset_index(drop=True, inplace=True)
       if loading_type != 'new_category':
+        raw_df= pd.DataFrame()
+#         pass
         raw_df = external_folder_structure_process(external_folder_structure,external_source_file_formats,
                  file_processing_info,update_file_processing_info,file_processing_blob_all_txt_list,sql_conn,cursor)   
       else:
@@ -2832,13 +3224,11 @@ def main():
         extracted_file_list.extend(file_processing_blob_all_txt_list)
       external_file_process_query = config.get('mount_path', 'external_file_process')
       external_processed_files_df = external_source_data(sql_conn,external_file_process_query)
-      unstruct_category_key_query = config.get('mount_path','unstruct_category_key')
-      unstruct_category_key_df = external_source_data(sql_conn,unstruct_category_key_query)
-      unstructure_processed_data_query = config.get('mount_path', 'unstructure_processed_data')
       pattern_match_validation(sql_conn,external_processed_files_df,cursor,unstruct_category_key_df
-                            ,raw_df,unstructure_processed_data_query)
-      if len(extracted_file_list) !=0:
-        Specification(sql_conn,cursor)                      
+                             ,raw_df,unstructure_processed_data_query,product_his_df,prod_ont_inc_df)
+      if len(extracted_file_list) !=0 or  prod_ont_flag =='s':
+         #pass
+        Specification(sql_conn,cursor) 
   except Exception as e:
     logger.error('Something went wrong in main function', exc_info=True)
     
